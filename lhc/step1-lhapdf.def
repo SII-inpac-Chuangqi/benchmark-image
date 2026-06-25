@@ -1,0 +1,24 @@
+Bootstrap: localimage
+From: ../common/common.sif
+
+%post
+    INSTALL_PREFIX=/opt/common
+    set -e
+    ln -sf /usr/bin/python3.12 /usr/bin/python
+    mkdir -p /tmp/build
+    cd /tmp/build
+
+    curl -sL -o lhapdf.tar.gz "https://lhapdf.hepforge.org/downloads/?f=LHAPDF-6.5.6.tar.gz"
+    tar xzf lhapdf.tar.gz
+    cd LHAPDF-*
+
+    ./configure --prefix=${INSTALL_PREFIX}
+    make -j4 && make install
+
+    cd /tmp/build && rm -rf LHAPDF-* lhapdf.tar.gz
+    rm -rf /tmp/build
+
+%environment
+    export INSTALL_PREFIX=/opt/common
+    export PATH=${INSTALL_PREFIX}/bin:${PATH}
+    export LD_LIBRARY_PATH=${INSTALL_PREFIX}/lib:${INSTALL_PREFIX}/lib64:${LD_LIBRARY_PATH}
