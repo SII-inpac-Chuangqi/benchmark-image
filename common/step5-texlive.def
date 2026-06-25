@@ -1,16 +1,26 @@
 Bootstrap: localimage
-From: common-step4.sif
+From: ../common/common-step4.sif
 
 %post
     set -e
-    dnf -y --setopt=tsflags=nodocs install \
-        texlive-scheme-basic \
-        texlive-collection-latexrecommended
+    dnf -y --setopt=tsflags=nodocs install texlive-scheme-basic
 
+    # Strip shared libraries
+    find /opt/common/lib -name '*.so' -exec strip --strip-unneeded {} \; 2>/dev/null || true
+    find /opt/common/lib64 -name '*.so' -exec strip --strip-unneeded {} \; 2>/dev/null || true
+
+    # Strip binaries
+    find /opt/common/bin -type f -executable -exec strip {} \; 2>/dev/null || true
+
+    # Remove static libraries
+    find /opt -name '*.a' -delete 2>/dev/null || true
+
+    # Clean caches
     dnf clean all
     rm -rf /var/cache/dnf /var/log/dnf*
+    rm -rf /root/.cache/pip
 
-    # Verify pdfTeX version
+    # Verify
     pdftex --version | head -1
 
 %environment
