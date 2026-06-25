@@ -1,0 +1,19 @@
+Bootstrap: localimage
+From: common-step4.sif
+
+%post
+    set -e
+    dnf -y --setopt=tsflags=nodocs install \
+        texlive-scheme-basic \
+        texlive-collection-latexrecommended
+
+    dnf clean all
+    rm -rf /var/cache/dnf /var/log/dnf*
+
+    # Verify pdfTeX version
+    pdftex --version | head -1
+
+%environment
+    export INSTALL_PREFIX=/opt/common
+    export PATH=${INSTALL_PREFIX}/bin:${PATH}
+    export LD_LIBRARY_PATH=${INSTALL_PREFIX}/lib:${INSTALL_PREFIX}/lib64:${LD_LIBRARY_PATH}

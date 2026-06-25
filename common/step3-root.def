@@ -1,0 +1,43 @@
+Bootstrap: localimage
+From: common-step2.sif
+
+%post
+    INSTALL_PREFIX=/opt/common
+    set -e
+    dnf -y install giflib-devel libjpeg-turbo-devel
+    mkdir -p /tmp/build
+    cd /tmp/build
+
+    cat > /usr/local/bin/ghdl << 'EOFDL'
+#!/bin/bash
+set -e
+URL="https://codeload.github.com/$1/legacy.tar.gz/$2"
+curl -sL --connect-timeout 30 --max-time 900 -o "$3" "${URL}"
+EOFDL
+    chmod +x /usr/local/bin/ghdl
+
+    ghdl root-project/root v6-40-00 root.tar.gz
+    tar xzf root.tar.gz
+    cd root-*
+    ROOT_SRC=$(pwd)
+    rm -rf _build && mkdir _build && cd _build
+
+    cmake ${ROOT_SRC} \
+        -DCMAKE_INSTALL_PREFIX=${INSTALL_PREFIX} \
+        -DCMAKE_CXX_STANDARD=17 \
+        -Droot7=OFF -Dtmva=ON -Deve=ON -Dgui=ON -Dgdml=ON -Drgl=ON -Deg=ON \
+        -Dx11=ON -Dopengl=ON \
+        -Dmysql=OFF -Dpgsql=OFF -Dsqlite=OFF \
+        -Dfftw3=OFF -Dgfal=OFF -Ddavix=OFF -Dhttp=OFF -Dcfitsio=OFF \
+        -Dsql=OFF -Dnet=OFF \
+        -Dfail-on-missing=OFF
+    make -j4 && make install
+
+    echo "source ${INSTALL_PREFIX}/bin/thisroot.sh" >> /etc/profile.d/common.sh
+    cd /tmp/build && rm -rf root-* root.tar.gz
+    rm -rf /tmp/build
+
+%environment
+    export INSTALL_PREFIX=/opt/common
+    export PATH=${INSTALL_PREFIX}/bin:${PATH}
+    export LD_LIBRARY_PATH=${INSTALL_PREFIX}/lib:${INSTALL_PREFIX}/lib64:${LD_LIBRARY_PATH}
