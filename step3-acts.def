@@ -1,0 +1,45 @@
+Bootstrap: localimage
+From: darkshine-step2.sif
+
+%post
+    INSTALL_PREFIX=/opt/darkshine
+    set -e
+    export PATH=${INSTALL_PREFIX}/bin:${PATH}
+    export LD_LIBRARY_PATH=${INSTALL_PREFIX}/lib:${INSTALL_PREFIX}/lib64:${LD_LIBRARY_PATH}
+    mkdir -p /tmp/build && cd /tmp/build
+
+    dnf -y install tbb-devel
+
+    cat > /usr/local/bin/ghdl << 'EOFDL'
+#!/bin/bash
+set -e
+URL="https://codeload.github.com/$1/legacy.tar.gz/$2"
+curl -sL --connect-timeout 30 --max-time 900 -o "$3" "${URL}"
+EOFDL
+    chmod +x /usr/local/bin/ghdl
+
+    ghdl ykrsama/acts xuliang-v30 acts.tar.gz
+    tar xzf acts.tar.gz
+    cd ykrsama-acts-*
+
+    # Clean stale FetchContent state and use built-in nlohmann_json
+    rm -rf _build _deps
+
+    mkdir _build && cd _build
+    cmake .. \
+        -DCMAKE_INSTALL_PREFIX=${INSTALL_PREFIX} \
+        -DCMAKE_CXX_STANDARD=17 \
+        -DACTS_BUILD_PLUGIN_JSON=ON \
+        -DACTS_BUILD_EXAMPLES=ON \
+        -DACTS_BUILD_EXAMPLES_BINARIES=ON \
+        -DACTS_BUILD_FATRAS=ON \
+        -DACTS_BUILD_ALIGNMENT=OFF \
+        -DACTS_BUILD_UNITTESTS=OFF
+    make -j4 && make install
+    cd /tmp/build && rm -rf ykrsama-acts-* acts.tar.gz
+    rm -rf /tmp/build
+
+%environment
+    export INSTALL_PREFIX=/opt/darkshine
+    export PATH=/opt/darkshine/bin:${PATH}
+    export LD_LIBRARY_PATH=/opt/darkshine/lib:/opt/darkshine/lib64:${LD_LIBRARY_PATH}
