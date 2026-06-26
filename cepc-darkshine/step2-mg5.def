@@ -16,9 +16,10 @@ From: cepc-step1.sif
     # Fix potential Python import bug
     sed -i '27i import logging' ${MG5_DIR}/bin/mg5_aMC 2>/dev/null || true
 
-    # Install Pythia8 (builtin)
+    # Install Pythia8 (builtin) — needs lhapdf6 first
     dnf -y install rsync
     cd ${MG5_DIR}
+    echo "install lhapdf6" | ./bin/mg5_aMC 2>&1 | tail -3
     echo "install pythia8" | ./bin/mg5_aMC 2>&1 | tail -5
 
     echo "export PATH=${MG5_DIR}/bin:\${PATH}" >> /etc/profile.d/common.sh

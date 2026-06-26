@@ -1,6 +1,9 @@
 Bootstrap: localimage
 From: ../common/common.sif
 
+%files
+    geant4-v10.6.3.tar.gz /opt/geant4.tar.gz
+
 %post
     INSTALL_PREFIX=/opt/common
     set -e
@@ -8,16 +11,7 @@ From: ../common/common.sif
     mkdir -p /tmp/build
     cd /tmp/build
 
-    cat > /usr/local/bin/ghdl << 'EOFDL'
-#!/bin/bash
-set -e
-URL="https://codeload.github.com/$1/legacy.tar.gz/$2"
-curl -sL --connect-timeout 30 --max-time 900 -o "$3" "${URL}"
-EOFDL
-    chmod +x /usr/local/bin/ghdl
-
-    ghdl Geant4/geant4 v10.6.3 geant4.tar.gz
-    tar xzf geant4.tar.gz
+    tar xzf /opt/geant4.tar.gz
     cd Geant4-geant4-*
     rm -rf _build && mkdir _build && cd _build
     cmake .. \
@@ -30,8 +24,9 @@ EOFDL
     make -j4 && make install
     rm -rf ${INSTALL_PREFIX}/share/Geant4-*/data/RealSurface* \
            ${INSTALL_PREFIX}/share/Geant4-*/data/G4NDL*
+    rm -rf ${INSTALL_PREFIX}/share/Geant4-*/examples
     echo "source ${INSTALL_PREFIX}/bin/geant4.sh" >> /etc/profile.d/common.sh
-    cd /tmp/build && rm -rf Geant4-* geant4.tar.gz
+    cd /tmp/build && rm -rf Geant4-*
     rm -rf /tmp/build
 
 %environment
