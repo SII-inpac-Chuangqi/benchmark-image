@@ -1,5 +1,5 @@
 Bootstrap: localimage
-From: ../common/common-step4.sif
+From: common-step5.sif
 
 %post
     set -e
@@ -20,7 +20,7 @@ From: ../common/common-step4.sif
 
     # Clean caches
     dnf clean all
-    rm -rf /var/cache/dnf /var/log/dnf*
+    rm -rf /var/cache/dnf /var/log/dnf* /var/lib/dnf
     rm -rf /root/.cache/pip
 
     # Verify
