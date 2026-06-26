@@ -1,6 +1,6 @@
 #!/bin/bash
-# Validation script for CEPC+darkshine image  
-# Usage: apptainer exec --fakeroot cepc-darkshine.sif bash validate_cepc.sh
+# Validation script for CEPC+darkshine image
+# Usage: apptainer exec --fakeroot --bind /cefs:/cefs cepc-darkshine.sif bash validate_cepc.sh
 
 set -e
 source /opt/common/bin/thisroot.sh
@@ -12,6 +12,7 @@ check() { local n=$1; shift; if "$@" >/dev/null 2>&1; then echo "  [PASS] $n"; (
 
 echo "=== CEPC+darkshine Image Validation ==="
 echo ""
+
 echo "--- Core ---"
 check "ROOT"           which root
 check "Python 3.12"    python3.12 --version
@@ -33,9 +34,15 @@ check "Pythia8 MG5"    [ -f /opt/mg5/HEPTools/mg5amc_py8_interface/MG5aMC_PY8_in
 echo ""
 echo "--- Delphes Fast Simulation ---"
 check "DelphesHepMC2"  [ -x /opt/common/bin/DelphesHepMC2 ]
-check "DelphesROOT"    [ -x /opt/common/bin/DelphesROOT ]
-check "DelphesPythia8" [ -x /opt/common/bin/DelphesPythia8 ]
-check "CEPC card"      [ -f /opt/common/cards/delphes_card_CEPC.tcl ]
+check "DelphesHepMC3"  [ -x /opt/common/bin/DelphesHepMC3 ]
+check "DelphesLHEF"    [ -x /opt/common/bin/DelphesLHEF ]
+check "CEPC 4th card"  [ -f /opt/common/cards/delphes_card_CEPC_4th.tcl ]
+
+echo ""
+echo "--- Delphes PCM check ---"
+check "ClassesDict PCM"   [ -f /opt/common/lib/libClassesDict_rdict.pcm ]
+check "ExRoot PCM"        [ -f /opt/common/lib/libExRootAnalysisDict_rdict.pcm ]
+check "ModulesDict PCM"   [ -f /opt/common/lib/libModulesDict_rdict.pcm ]
 
 echo ""
 echo "--- Python HEP Stack ---"

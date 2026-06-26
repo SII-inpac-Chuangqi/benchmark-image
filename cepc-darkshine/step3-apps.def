@@ -1,0 +1,43 @@
+Bootstrap: localimage
+From: cepc-step2.sif
+
+%setup
+    mkdir -p ${APPTAINER_ROOTFS}/hpcfs 2>/dev/null || true
+    mkdir -p ${APPTAINER_ROOTFS}/cefs 2>/dev/null || true
+
+%post
+    INSTALL_PREFIX=/opt/common
+    set -e
+
+    # CEPC Delphes — build with CMake (ROOT 6.40 ABI compat, matches Software/Delphes/build-el9)
+    # CMake's ROOT_GENERATE_DICTIONARY produces PCMs with lib prefix (libClassesDict_rdict.pcm)
+    # that ROOT finds alongside the library — no need to copy to bin/
+    dnf -y install tcl
+    source /opt/common/bin/thisroot.sh
+    mkdir -p /tmp/build && cd /tmp/build
+    cp -r /hpcfs/cepc/higgsgpu/zhuchunxiang/Delphes/delphes_cepc delphes_src
+    cd delphes_src
+    mkdir _build && cd _build
+    cmake .. -DCMAKE_INSTALL_PREFIX=${INSTALL_PREFIX}
+    make -j4
+    make install
+    cd /tmp/build && rm -rf delphes_src
+    rm -rf /tmp/build
+
+    # FeynGame 3.0.0 — copy Java jar + startup script
+    mkdir -p ${INSTALL_PREFIX}/feyngame/bin ${INSTALL_PREFIX}/feyngame/lib
+    cp /cefs/higgs/zhuchunxiang/software/FeynGame/bin/FeynGame-8.jar ${INSTALL_PREFIX}/feyngame/bin/
+    cp /cefs/higgs/zhuchunxiang/software/FeynGame/lib/*.jar ${INSTALL_PREFIX}/feyngame/lib/
+    cp /cefs/higgs/zhuchunxiang/software/FeynGame/buildfile ${INSTALL_PREFIX}/feyngame/ 2>/dev/null || true
+
+    # FeynGame wrapper script
+    cat > ${INSTALL_PREFIX}/bin/feyngame << 'FEOF'
+#!/bin/bash
+java -jar /opt/common/feyngame/bin/FeynGame-8.jar "$@"
+FEOF
+    chmod +x ${INSTALL_PREFIX}/bin/feyngame
+
+%environment
+    export INSTALL_PREFIX=/opt/common
+    export PATH=/opt/mg5/bin:${INSTALL_PREFIX}/bin:${PATH}
+    export LD_LIBRARY_PATH=${INSTALL_PREFIX}/lib:${INSTALL_PREFIX}/lib64:/opt/mg5/HEPTools/pythia8/lib:${LD_LIBRARY_PATH}

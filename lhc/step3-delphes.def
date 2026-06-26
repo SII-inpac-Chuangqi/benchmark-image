@@ -22,16 +22,15 @@ EOFDL
 
     source /opt/common/bin/thisroot.sh
 
-    export HAS_PYTHIA8=true
-    export PYTHIA8=/opt/mg5/HEPTools/pythia8
-
-    ./configure
+    # Build with CMake (matching CEPC Delphes build pattern)
+    # CMake's ROOT_GENERATE_DICTIONARY produces lib-prefixed PCMs
+    # that ROOT finds alongside the library — no manual PCM copy needed
+    mkdir _build && cd _build
+    cmake .. \
+        -DCMAKE_INSTALL_PREFIX=${INSTALL_PREFIX} \
+        -DPYTHIA8=/opt/mg5/HEPTools/pythia8
     make -j4
-
-    mkdir -p ${INSTALL_PREFIX}/bin ${INSTALL_PREFIX}/lib ${INSTALL_PREFIX}/cards
-    cp DelphesHepMC2 DelphesHepMC3 DelphesROOT DelphesSTDHEP DelphesPythia8 ${INSTALL_PREFIX}/bin/ 2>/dev/null || true
-    cp libDelphes* ${INSTALL_PREFIX}/lib/ 2>/dev/null || true
-    cp -r cards/* ${INSTALL_PREFIX}/cards/ 2>/dev/null || true
+    make install
 
     cd /tmp/build && rm -rf delphes-* delphes.tar.gz
     rm -rf /tmp/build

@@ -15,13 +15,10 @@ From: lhc-step3.sif
     # Remove static libraries
     find /opt -name '*.a' -delete 2>/dev/null || true
 
-    # Clean MG5 templates and unused vendors
-    rm -rf /opt/mg5/Template 2>/dev/null || true
+    # Clean unused MG5 vendors
     rm -rf /opt/mg5/vendor/SudGen 2>/dev/null || true
-
-    # Clean dnf and pip cache
     dnf clean all 2>/dev/null || true
-    rm -rf /var/cache/dnf /var/log/dnf*
+    rm -rf /var/cache/dnf /var/log/dnf* /var/lib/dnf
     rm -rf /root/.cache/pip
 
 %environment
