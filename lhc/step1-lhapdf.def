@@ -5,6 +5,9 @@ From: ../common/common.sif
     INSTALL_PREFIX=/opt/common
     set -e
     ln -sf /usr/bin/python3.12 /usr/bin/python
+
+    python3.12 -m pip install --no-cache-dir scipy==1.17.1
+
     mkdir -p /tmp/build
     cd /tmp/build
 

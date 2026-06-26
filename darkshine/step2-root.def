@@ -1,0 +1,41 @@
+Bootstrap: localimage
+From: darkshine-step1.sif
+
+%post
+    INSTALL_PREFIX=/opt/darkshine
+    export PATH=${INSTALL_PREFIX}/bin:${PATH}
+    export LD_LIBRARY_PATH=${INSTALL_PREFIX}/lib:${INSTALL_PREFIX}/lib64:${LD_LIBRARY_PATH}
+    mkdir -p /tmp/build && cd /tmp/build
+
+    cat > /usr/local/bin/ghdl << 'EOFDL'
+#!/bin/bash
+set -e
+URL="https://codeload.github.com/$1/legacy.tar.gz/$2"
+curl -sL --connect-timeout 30 --max-time 900 -o "$3" "${URL}"
+EOFDL
+    chmod +x /usr/local/bin/ghdl
+
+    ghdl root-project/root v6-30-06 root.tar.gz
+    tar xzf root.tar.gz
+    cd root-*
+    ROOT_SRC=$(pwd)
+    rm -rf _build && mkdir _build && cd _build
+    cmake ${ROOT_SRC} \
+        -DCMAKE_INSTALL_PREFIX=${INSTALL_PREFIX} \
+        -DCMAKE_CXX_STANDARD=17 \
+        -Droot7=OFF -Dtmva=ON -Deve=ON -Dgui=ON -Dgdml=ON -Drgl=ON -Deg=ON \
+        -Dx11=ON -Dopengl=ON -Dmysql=OFF -Dpgsql=OFF \
+        -Dsql=OFF -Dsqlite=OFF \
+        -Dfftw3=OFF -Dgfal=OFF -Ddavix=OFF -Dhttp=OFF -Dcfitsio=OFF \
+        -Dnet=OFF \
+        -Dfail-on-missing=OFF
+    make -j4 && make install
+    cd /tmp/build && rm -rf root-* root.tar.gz
+
+    echo "source ${INSTALL_PREFIX}/bin/thisroot.sh" >> /etc/profile.d/darkshine.sh
+    rm -rf /tmp/build
+
+%environment
+    export INSTALL_PREFIX=/opt/darkshine
+    export PATH=/opt/darkshine/bin:${PATH}
+    export LD_LIBRARY_PATH=/opt/darkshine/lib:/opt/darkshine/lib64:${LD_LIBRARY_PATH}

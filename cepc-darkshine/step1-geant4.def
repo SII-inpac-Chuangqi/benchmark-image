@@ -1,0 +1,40 @@
+Bootstrap: localimage
+From: ../common/common.sif
+
+%post
+    INSTALL_PREFIX=/opt/common
+    set -e
+    dnf -y install xerces-c-devel
+    mkdir -p /tmp/build
+    cd /tmp/build
+
+    cat > /usr/local/bin/ghdl << 'EOFDL'
+#!/bin/bash
+set -e
+URL="https://codeload.github.com/$1/legacy.tar.gz/$2"
+curl -sL --connect-timeout 30 --max-time 900 -o "$3" "${URL}"
+EOFDL
+    chmod +x /usr/local/bin/ghdl
+
+    ghdl Geant4/geant4 v10.6.3 geant4.tar.gz
+    tar xzf geant4.tar.gz
+    cd Geant4-geant4-*
+    rm -rf _build && mkdir _build && cd _build
+    cmake .. \
+        -DCMAKE_INSTALL_PREFIX=${INSTALL_PREFIX} \
+        -DCMAKE_CXX_FLAGS="-Wno-error=maybe-uninitialized -Wno-error=stringop-overflow" \
+        -DGEANT4_INSTALL_DATA=ON \
+        -DGEANT4_USE_GDML=ON \
+        -DGEANT4_USE_OPENGL_X11=ON \
+        -DGEANT4_BUILD_MULTITHREADED=ON
+    make -j4 && make install
+    rm -rf ${INSTALL_PREFIX}/share/Geant4-*/data/RealSurface* \
+           ${INSTALL_PREFIX}/share/Geant4-*/data/G4NDL*
+    echo "source ${INSTALL_PREFIX}/bin/geant4.sh" >> /etc/profile.d/common.sh
+    cd /tmp/build && rm -rf Geant4-* geant4.tar.gz
+    rm -rf /tmp/build
+
+%environment
+    export INSTALL_PREFIX=/opt/common
+    export PATH=${INSTALL_PREFIX}/bin:${PATH}
+    export LD_LIBRARY_PATH=${INSTALL_PREFIX}/lib:${INSTALL_PREFIX}/lib64:${LD_LIBRARY_PATH}

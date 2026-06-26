@@ -1,0 +1,29 @@
+Bootstrap: localimage
+From: cepc-step1.sif
+
+%files
+    MG5_aMC_v3.6.7.tar.gz /opt/mg5.tar.gz
+
+%post
+    INSTALL_PREFIX=/opt/common
+    MG5_DIR=/opt/mg5
+    set -e
+
+    ls -lh /opt/mg5.tar.gz
+    cd /opt && tar xzf mg5.tar.gz && rm mg5.tar.gz
+    mv MG5_aMC_v3_6_7 ${MG5_DIR}
+
+    # Fix potential Python import bug
+    sed -i '27i import logging' ${MG5_DIR}/bin/mg5_aMC 2>/dev/null || true
+
+    # Install Pythia8 (builtin)
+    dnf -y install rsync
+    cd ${MG5_DIR}
+    echo "install pythia8" | ./bin/mg5_aMC 2>&1 | tail -5
+
+    echo "export PATH=${MG5_DIR}/bin:\${PATH}" >> /etc/profile.d/common.sh
+
+%environment
+    export INSTALL_PREFIX=/opt/common
+    export PATH=/opt/mg5/bin:${INSTALL_PREFIX}/bin:${PATH}
+    export LD_LIBRARY_PATH=${INSTALL_PREFIX}/lib:${INSTALL_PREFIX}/lib64:/opt/mg5/HEPTools/pythia8/lib:${LD_LIBRARY_PATH}

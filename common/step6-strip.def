@@ -1,9 +1,8 @@
 Bootstrap: localimage
-From: ../common/common-step4.sif
+From: ../common/common.sif
 
 %post
     set -e
-    dnf -y --setopt=tsflags=nodocs install texlive-scheme-basic
 
     # Strip shared libraries
     find /opt/common/lib -name '*.so' -exec strip --strip-unneeded {} \; 2>/dev/null || true
@@ -15,16 +14,10 @@ From: ../common/common-step4.sif
     # Remove static libraries
     find /opt -name '*.a' -delete 2>/dev/null || true
 
-    # Remove ROOT tutorials (not needed at runtime)
-    rm -rf /opt/common/tutorials
-
     # Clean caches
-    dnf clean all
+    dnf clean all 2>/dev/null || true
     rm -rf /var/cache/dnf /var/log/dnf*
     rm -rf /root/.cache/pip
-
-    # Verify
-    pdftex --version | head -1
 
 %environment
     export INSTALL_PREFIX=/opt/common

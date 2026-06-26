@@ -16,7 +16,6 @@ From: quay.io/almalinux/almalinux:9
     # Python 3.12 packages via pip (exact versions)
     python3.12 -m pip install --no-cache-dir \
         numpy==2.4.6 \
-        scipy==1.17.1 \
         matplotlib==3.10.9 \
         uproot==5.7.4 \
         awkward==2.9.0

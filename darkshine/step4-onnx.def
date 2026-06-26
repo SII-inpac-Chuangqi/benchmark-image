@@ -1,0 +1,65 @@
+Bootstrap: localimage
+From: darkshine-step3.sif
+
+%post
+    INSTALL_PREFIX=/opt/darkshine
+    export PATH=${INSTALL_PREFIX}/bin:${PATH}
+    export LD_LIBRARY_PATH=${INSTALL_PREFIX}/lib:${INSTALL_PREFIX}/lib64:${LD_LIBRARY_PATH}
+    mkdir -p /tmp/build && cd /tmp/build
+
+    dnf -y install flatbuffers-devel
+
+    cat > /usr/local/bin/ghdl << 'EOFDL'
+#!/bin/bash
+set -e
+URL="https://codeload.github.com/$1/legacy.tar.gz/$2"
+curl -sL --connect-timeout 30 --max-time 900 -o "$3" "${URL}"
+EOFDL
+    chmod +x /usr/local/bin/ghdl
+
+    ghdl microsoft/onnxruntime v1.16.3 onnx.tar.gz
+    tar xzf onnx.tar.gz
+    cd microsoft-onnxruntime-* 2>/dev/null || cd onnxruntime-*
+
+    # Pre-download date library (blocked from github.com, use codeload)
+    mkdir -p build/Linux/Release/_deps
+    ghdl HowardHinnant/date v2.4.1 date.tar.gz
+    cp date.tar.gz build/Linux/Release/_deps/date-subbuild/date-populate-prefix/src/v2.4.1.zip 2>/dev/null || \
+    cp date.tar.gz build/Linux/Release/_deps/ 2>/dev/null || true
+
+    ./build.sh --config Release --build_shared_lib --parallel 4 \
+        --skip_tests --allow_running_as_root --skip_submodule_sync \
+        --use_preinstalled_eigen --eigen_path /usr/include/eigen3 \
+        --cmake_extra_defines onnxruntime_USE_PREINSTALLED_FLATBUFFERS=ON
+
+    cp -r include/onnxruntime ${INSTALL_PREFIX}/include/
+    find build/Linux/Release -name 'libonnxruntime*.so*' \
+        -exec cp -a {} ${INSTALL_PREFIX}/lib/ \;
+    cd /tmp/build && rm -rf microsoft-onnxruntime-* onnxruntime-* onnx.tar.gz date.tar.gz
+
+    cat > ${INSTALL_PREFIX}/setup.sh << 'EOF'
+#!/bin/bash
+export DSS_DIR=/opt/darkshine
+export PATH=${DSS_DIR}/bin:${PATH}
+export LD_LIBRARY_PATH=${DSS_DIR}/lib:${DSS_DIR}/lib64:${LD_LIBRARY_PATH}
+source ${DSS_DIR}/bin/geant4.sh
+source ${DSS_DIR}/bin/thisroot.sh
+echo "DarkSHINE environment loaded"
+EOF
+    chmod +x ${INSTALL_PREFIX}/setup.sh
+
+    find ${INSTALL_PREFIX}/lib -name '*.a' -delete 2>/dev/null
+    find ${INSTALL_PREFIX}/lib64 -name '*.a' -delete 2>/dev/null
+    strip --strip-unneeded ${INSTALL_PREFIX}/lib/*.so ${INSTALL_PREFIX}/lib64/*.so 2>/dev/null || true
+    find ${INSTALL_PREFIX}/bin -type f -executable -exec strip {} \; 2>/dev/null || true
+    dnf clean all; rm -rf /var/cache/dnf /var/log/dnf*
+    rm -rf /tmp/build
+
+%environment
+    export INSTALL_PREFIX=/opt/darkshine
+    export PATH=/opt/darkshine/bin:${PATH}
+    export LD_LIBRARY_PATH=/opt/darkshine/lib:/opt/darkshine/lib64:${LD_LIBRARY_PATH}
+
+%runscript
+    source /opt/darkshine/setup.sh
+    exec /bin/bash "$@"
