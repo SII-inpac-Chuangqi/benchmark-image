@@ -52,7 +52,7 @@ check "MG5_aMC 3.6.7"     [ -f /opt/mg5/bin/mg5_aMC ]
 check "Pythia8"           [ -f /opt/mg5/HEPTools/pythia8/lib/libpythia8.so ]
 check "HepMC3"            [ -x /opt/common/bin/HepMC3-config ]
 check "LHAPDF"            which lhapdf-config
-check "onnxruntime"       python3.12 -c "import onnxruntime" 2>/dev/null || { echo "  [INFO] Installing onnxruntime==1.16.3..."; pip3.12 install onnxruntime==1.16.3 2>&1 | tail -1; python3.12 -c "import onnxruntime"; }
+check "onnxruntime (C++)"  [ -f /opt/common/lib/libonnxruntime.so ]
 check "DelphesHepMC2"     [ -x /opt/common/bin/DelphesHepMC2 ]
 check "Delphes PCM"       [ -f /opt/common/lib/libClassesDict_rdict.pcm ]
 check "CEPC 4th card"     [ -f /opt/common/cards/delphes_card_CEPC_4th.tcl ]
