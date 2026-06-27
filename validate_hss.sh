@@ -55,7 +55,7 @@ check "Pythia8"           [ -f /opt/mg5/HEPTools/pythia8/lib/libpythia8.so ]
 check "HepMC3"            [ -x /opt/common/bin/HepMC3-config ]
 check "LHAPDF"            which lhapdf-config
 check "onnxruntime (C++)"  ls /opt/common/lib/libonnxruntime.so 2>/dev/null
-python3.12 -c "import onnxruntime" 2>/dev/null && info "onnxruntime (Python)" || pip3.12 install onnxruntime 2>/dev/null | tail -1
+python3.12 -c "import onnxruntime" 2>/dev/null && info "onnxruntime (Python)" || { pip3.12 install onnxruntime >/dev/null 2>&1 && info "onnxruntime (Python) installed"; }
 check "DelphesHepMC2"     [ -x /opt/common/bin/DelphesHepMC2 ]
 check "Delphes PCM"       [ -f /opt/common/lib/libClassesDict_rdict.pcm ]
 check "CEPC 4th card"     [ -f /opt/common/cards/delphes_card_CEPC_4th.tcl ]
