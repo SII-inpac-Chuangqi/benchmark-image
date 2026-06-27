@@ -245,6 +245,28 @@ YAML
             rm -rf merge_out && mkdir merge_out
             $MERGE -c cfg_merge.yaml 2>&1 | grep Creating
             [ -f merge_out/merge_ss_0000.root ] && echo "  [PASS] event_merge" && ((PASS++)) || { echo "  [FAIL] event_merge"; ((FAIL++)); }
+
+            # ---- mjj plot ----
+            if [ -f merge_out/merge_ss_0000.root ]; then
+                echo ""
+                echo "--- mjj distribution ---"
+                python3.12 << 'PYPLOT'
+import ROOT, os
+f = ROOT.TFile("merge_out/merge_ss_0000.root")
+t = f.Get("tree")
+if t and t.GetEntries() > 0:
+    h = ROOT.TH1D("h_mjj", ";m_{jj} [GeV];Events / 2 GeV", 50, 0, 200)
+    t.Draw("mjj>>h_mjj", "", "goff")
+    out = os.environ.get("PLOT_OUT", "/mnt/bi/mjj.pdf")
+    c = ROOT.TCanvas("c", "", 800, 600)
+    h.Draw()
+    c.SaveAs(out)
+    print(f"  [PASS] mjj plot -> {out}  ({h.GetEntries()} entries, mean={h.GetMean():.1f}, RMS={h.GetRMS():.1f})")
+else:
+    print("  [WARN] No mjj data in tree")
+f.Close()
+PYPLOT
+            fi
         else
             echo "  [FAIL] Solver build"
             ((FAIL++))
