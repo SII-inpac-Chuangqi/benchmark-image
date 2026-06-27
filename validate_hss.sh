@@ -22,7 +22,6 @@ WORK=${HSS_WORKDIR:-/tmp/hss_validation}
 NEVENTS=${HSS_NEVENTS:-100}
 BRANCH=${HSS_BRANCH:-release/dev/SII-build}
 SOLVER_REPO="https://github.com/SII-inpac-Chuangqi/higgs-strange-solver.git"
-MY_SM_REPO="https://github.com/SII-inpac-Chuangqi/benchmark-image.git"
 
 rm -rf $WORK && mkdir -p $WORK/{source,build,install,run}
 cd $WORK
@@ -52,7 +51,9 @@ check "MG5_aMC 3.6.7"     [ -f /opt/mg5/bin/mg5_aMC ]
 check "Pythia8"           [ -f /opt/mg5/HEPTools/pythia8/lib/libpythia8.so ]
 check "HepMC3"            [ -x /opt/common/bin/HepMC3-config ]
 check "LHAPDF"            which lhapdf-config
-check "onnxruntime"       python3.12 -c "import onnxruntime"
+check "onnxruntime (C++)"  ls /opt/common/lib/libonnxruntime.so 2>/dev/null
+# Python onnxruntime may not be installed in common — install if missing
+python3.12 -c "import onnxruntime" 2>/dev/null || pip3.12 install onnxruntime 2>/dev/null | tail -1
 check "DelphesHepMC2"     [ -x /opt/common/bin/DelphesHepMC2 ]
 check "Delphes PCM"       [ -f /opt/common/lib/libClassesDict_rdict.pcm ]
 check "CEPC 4th card"     [ -f /opt/common/cards/delphes_card_CEPC_4th.tcl ]
@@ -60,24 +61,25 @@ check "FeynGame"          [ -x /opt/common/bin/feyngame ]
 check "numpy/ROOT"        python3.12 -c "import numpy, awkward, uproot, matplotlib, ROOT"
 
 # ---- Part 2: Get my_sm model ----
+# ---- Part 2: Get my_sm model ----
 echo ""
 echo "--- Install my_sm model ---"
 cd $WORK/source
-if git clone --depth 1 "$MY_SM_REPO" bm 2>/dev/null && [ -d bm/models/my_sm ]; then
-    cp -r bm/models/my_sm /opt/mg5/models/ 2>/dev/null
-    rm -rf bm
-    echo "  [OK] my_sm installed from GitHub"
-elif [ -f /opt/mg5/models/sm/parameters.py ]; then
-    # Fallback: create minimal my_sm from sm model
-    cp -r /opt/mg5/models/sm /opt/mg5/models/my_sm
-    cat >> /opt/mg5/models/my_sm/parameters.py << 'PYADD'
-yms = Parameter(name = 'yms', nature = 'external', type = 'real',
-    value = 0.096, texname = '\\text{yms}',
-    lhablock = 'YUKAWA', lhacode = [3])
-PYADD
-    echo "  [WARN] my_sm created from sm (minimal)"
+MODEL_INSTALLED=0
+# Try benchmark-image repo in current dir (if running from it)
+if [ -d ./models/my_sm ]; then
+    cp -r ./models/my_sm /opt/mg5/models/ 2>/dev/null && MODEL_INSTALLED=1
+elif [ -d ../models/my_sm ]; then
+    cp -r ../models/my_sm /opt/mg5/models/ 2>/dev/null && MODEL_INSTALLED=1
+# Try CEFS (requires --bind /cefs:/cefs)
+elif [ -d /cefs/higgs/zhuyifan/DarkSHINE/darkshine-build/my_sm ]; then
+    cp -r /cefs/higgs/zhuyifan/DarkSHINE/darkshine-build/my_sm /opt/mg5/models/ 2>/dev/null && MODEL_INSTALLED=1
+fi
+if [ "$MODEL_INSTALLED" -eq 1 ]; then
+    echo "  [OK] my_sm installed from local copy"
 else
-    echo "  [SKIP] my_sm not available"
+    echo "  [WARN] my_sm not found — will try sm fallback (may not generate h>ss)"
+    cp -r /opt/mg5/models/sm /opt/mg5/models/my_sm 2>/dev/null || true
 fi
 
 # ---- Part 3: MG5 H→ss generation ----
