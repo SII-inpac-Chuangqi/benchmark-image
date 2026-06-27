@@ -67,6 +67,7 @@ echo "--- Install my_sm model ---"
 MODEL_INSTALLED=0
 # Check env var, bundled, or bind-mounted paths
 for d in "${MY_SM_PATH:-}" \
+         "/mnt/bi/models/my_sm" \
          "/opt/common/models/my_sm" \
          "/cefs/higgs/zhuyifan/DarkSHINE/darkshine-build/my_sm"; do
     if [ -n "$d" ] && [ -d "$d" ]; then
@@ -76,8 +77,9 @@ done
 if [ "$MODEL_INSTALLED" -eq 1 ]; then
     echo "  [OK] my_sm installed from $d"
 else
-    echo "  [WARN] my_sm not found. Set MY_SM_PATH or bind-mount. Following steps will fail."
-    echo "  Hint: MY_SM_PATH=\$PWD/models/my_sm apptainer exec --bind \$PWD ..."
+    echo "  [WARN] my_sm not found. Bind-mount your benchmark-image clone:"
+    echo "  Hint: apptainer exec ... --bind \$PWD:/mnt/bi cepc.sif bash validate_hss.sh"
+    echo "        MY_SM_PATH=/mnt/bi/models/my_sm"
     cp -r /opt/mg5/models/sm /opt/mg5/models/my_sm 2>/dev/null || true
 fi
 
