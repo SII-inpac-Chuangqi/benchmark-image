@@ -1,0 +1,19 @@
+#************************************************************
+#*  H->ss process card (my_sm model with strange Yukawa)    *
+#*  From: jiangjf/madgraph_p8_h7 MG5_aMC_v3_6_3/data/zh_vv_ss
+#*  Model: my_sm (yms=0.096 in param_card)
+#************************************************************
+set group_subprocesses Auto
+set ignore_six_quark_processes False
+set complex_mass_scheme False
+set gauge unitary
+import model my_sm
+define p = g u c d s u~ c~ d~ s~
+define j = g u c d s u~ c~ d~ s~
+define l+ = e+ mu+
+define l- = e- mu-
+define vl = ve vm vt
+define vl~ = ve~ vm~ vt~
+define q = u d s c b
+define q~ = u~ d~ s~ c~ b~
+generate e+ e- > z h, z > vl vl~, h > s s~
