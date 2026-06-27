@@ -3,7 +3,8 @@
 # Image: cepc-darkshine.sif (MG5 3.6.7, Delphes CEPC_4th, GCC 11)
 #
 # Usage:
-#   apptainer exec --fakeroot --writable-tmpfs cepc-darkshine.sif bash validate_hss.sh
+#   apptainer exec --fakeroot --writable-tmpfs --bind $PWD:/mnt/bi \
+#       cepc-darkshine.sif bash validate_hss.sh
 #
 # Environment:
 #   HSS_WORKDIR   Working directory (default: /tmp/hss_validation)
@@ -31,11 +32,12 @@ source /opt/common/bin/geant4.sh 2>/dev/null || true
 export PATH=/opt/mg5/bin:/opt/common/bin:$PATH
 export LD_LIBRARY_PATH=/opt/common/lib:/opt/common/lib64:/opt/mg5/HEPTools/pythia8/lib:$LD_LIBRARY_PATH
 
-PASS=0; FAIL=0
+PASS=0; FAIL=0; SKIP=0
 check() { local n=$1; shift
     if "$@" >/dev/null 2>&1; then echo "  [PASS] $n"; ((PASS++))
     else echo "  [FAIL] $n"; ((FAIL++)); fi
 }
+skip() { echo "  [SKIP] $1"; ((SKIP++)); }
 
 echo "============================================"
 echo " H->ss Validation Pipeline"
@@ -60,7 +62,6 @@ check "CEPC 4th card"     [ -f /opt/common/cards/delphes_card_CEPC_4th.tcl ]
 check "FeynGame"          [ -x /opt/common/bin/feyngame ]
 check "numpy/ROOT"        python3.12 -c "import numpy, awkward, uproot, matplotlib, ROOT"
 
-# ---- Part 2: Get my_sm model ----
 # ---- Part 2: Get my_sm model ----
 echo ""
 echo "--- Install my_sm model ---"
@@ -140,7 +141,7 @@ if [ -f events.hepmc ]; then
         ((FAIL++))
     fi
 else
-    echo "  [SKIP] No HepMC"
+    skip "No HepMC"
 fi
 
 # ---- Part 5: Clone & Build Solver ----
@@ -159,7 +160,6 @@ if [ -f hss_delphes.root ]; then
             [ -f "$f" ] && sed -i 's|{:.1f}|%.1f|g; s|{:04d}|%04d|g; s|{}_|%s_|g; s|{}|%s|g' "$f"
         done
 
-        # Ensure format_compat for std::string
         cat > solver/util/inc/util/format_compat.hpp << 'FMT'
 #pragma once
 #include <cstdio>
@@ -175,7 +175,6 @@ template<typename...A> std::string format(const char* f,A...a){
 }
 FMT
 
-        # Build
         cd $WORK/build
         rm -rf * 2>/dev/null
         export DELPHES_DIR=/opt/common
@@ -197,7 +196,6 @@ FMT
             echo "  [PASS] Solver built"
             ((PASS++))
 
-            # jet_split
             cd $WORK/run
             cat > cfg_split.yaml << YAML
 input: ["$WORK/run/hss_delphes.root"]
@@ -212,7 +210,6 @@ YAML
             $SPLIT -c cfg_split.yaml 2>&1 | grep Creating
             [ -f split_out/split_ss_0000.root ] && echo "  [PASS] jet_split" && ((PASS++)) || { echo "  [FAIL] jet_split"; ((FAIL++)); }
 
-            # event_merge
             cat > cfg_merge.yaml << YAML
 input: ["$WORK/run/hss_delphes.root"]
 max_entries: ${NEVENTS}
@@ -228,8 +225,9 @@ YAML
             # ---- Part 6: Plot mjj ----
             echo ""
             echo "--- mjj Distribution ---"
-            PLOT_OUT="/tmp/hss_validation/mjj.pdf"
+            PLOT_OUT="/tmp/mjj.pdf"
             for d in /mnt/bi /tmp; do [ -w "$d" ] && PLOT_OUT="$d/mjj.pdf" && break; done
+            export MPLCONFIGDIR=/tmp/matplotlib-$RANDOM && mkdir -p $MPLCONFIGDIR
             if python3.12 -c "import matplotlib" 2>/dev/null; then
                 python3.12 -c "
 import uproot, numpy as np
@@ -255,7 +253,7 @@ if len(mjj) > 0:
 " 2>&1
                 ((PASS++))
             else
-                echo "  [SKIP] matplotlib not available"
+                skip "matplotlib not available"
             fi
         else
             echo "  [FAIL] Solver build"
@@ -266,12 +264,12 @@ if len(mjj) > 0:
         ((FAIL++))
     fi
 else
-    echo "  [SKIP] No Delphes"
+    skip "No Delphes"
 fi
 
 echo ""
 echo "============================================"
-echo " Results: $PASS passed, $FAIL failed"
+echo " Results: $PASS passed, $FAIL failed, $SKIP skipped"
 echo " Workdir: $WORK"
 echo "============================================"
 exit $FAIL
