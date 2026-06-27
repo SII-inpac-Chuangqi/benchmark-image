@@ -66,12 +66,12 @@ cd $WORK/source
 # 1) Try bind-mounted benchmark-image (GFW workaround)
 if [ -d /mnt/bi/models/my_sm ]; then
     cp -r /mnt/bi/models/my_sm /opt/mg5/models/ 2>/dev/null
-    echo "  [OK] my_sm from /mnt/bi/models/my_sm"
+    echo "  [INFO] my_sm from bind mount"
 # 2) Try git clone (works on Mac, fails inside container)
 elif git clone --depth 1 "$MY_SM_REPO" bm 2>/dev/null && [ -d bm/models/my_sm ]; then
     cp -r bm/models/my_sm /opt/mg5/models/ 2>/dev/null
     rm -rf bm
-    echo "  [OK] my_sm installed from GitHub"
+    echo "  [INFO] my_sm installed from GitHub"
 # 3) Fallback: create minimal my_sm from sm (incomplete — missing vertices)
 elif [ -f /opt/mg5/models/sm/parameters.py ]; then
     cp -r /opt/mg5/models/sm /opt/mg5/models/my_sm
@@ -115,7 +115,7 @@ set pdlabel isronlyll
 exit
 MACRO
 
-echo "  Generating ${NEVENTS} events..."
+echo "  [INFO] Generating ${NEVENTS} events..."
 cd zh_hss && bin/madevent madevent.macro 2>&1 | tail -5
 cd $WORK/run
 
@@ -155,16 +155,16 @@ if [ -f hss_delphes.root ]; then
     # 1) Use pre-cloned copy from bind mount (GFW workaround)
     if [ -n "$HSS_SOLVER_SRC" ] && [ -f "$HSS_SOLVER_SRC/CMakeLists.txt" ]; then
         cp -r "$HSS_SOLVER_SRC" solver && CLONED=1
-        echo "  [OK] Copied solver from HSS_SOLVER_SRC"
+        echo "  [INFO] Copied solver from HSS_SOLVER_SRC"
     elif [ -d /mnt/bi/solver_src ] && [ -f /mnt/bi/solver_src/CMakeLists.txt ]; then
         cp -r /mnt/bi/solver_src solver && CLONED=1
-        echo "  [OK] Copied solver from /mnt/bi/solver_src"
+        echo "  [INFO] Copied solver from bind mount"
     fi
     # 2) Try git clone (works on Mac, fails inside container behind GFW)
     if [ $CLONED -eq 0 ]; then
         if git clone -b "$BRANCH" "$SOLVER_REPO" solver 2>/dev/null; then
             CLONED=1
-            echo "  [OK] Cloned solver ($BRANCH)"
+            echo "  [INFO] Cloned solver ($BRANCH)"
         fi
     fi
 
@@ -204,11 +204,11 @@ FMT
             -DDELPHES_INCLUDE_DIR=/opt/common/include \
             -DDELPHES_EXTERNALS_INCLUDE_DIR=/opt/common/include/external \
             > $WORK/build_cmake.log 2>&1
-        echo "  cmake: $(tail -1 $WORK/build_cmake.log)"
+        echo "  [INFO] cmake: $(tail -1 $WORK/build_cmake.log)"
         if make -j4 > $WORK/build_make.log 2>&1; then
-            echo "  make: OK"
+            echo "  [INFO] make: OK"
         else
-            echo "  make: FAILED (see below)"
+            echo "  [FAIL] make failed (see below)"
             tail -30 $WORK/build_make.log
         fi
         make install >> $WORK/build_make.log 2>&1 || true
