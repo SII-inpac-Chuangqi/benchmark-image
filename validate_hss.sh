@@ -150,11 +150,12 @@ if [ -f hss_delphes.root ]; then
     if git clone -b "$BRANCH" "$SOLVER_REPO" solver 2>/dev/null; then
         echo "  [OK] Cloned solver ($BRANCH)"
 
-        # Patch format strings for GCC 11
+        # Patch format strings for GCC 11 (jet_split, event_merge, sub_fusion)
         for f in solver/util/inc/dataflow/event_loop.hpp \
                  solver/jet_split/inc/split_processor.hpp \
                  solver/event_merge/inc/merge_processor.hpp \
-                 solver/sub_fusion/inc/fusion_processor.hpp; do
+                 solver/sub_fusion/inc/fusion_processor.hpp \
+                 solver/sub_fusion/fusion.cpp; do
             [ -f "$f" ] && sed -i 's|{:.1f}|%.1f|g; s|{:04d}|%04d|g; s|{}_|%s_|g; s|{}|%s|g' "$f"
         done
 
