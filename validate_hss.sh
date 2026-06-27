@@ -52,7 +52,7 @@ check "MG5_aMC 3.6.7"     [ -f /opt/mg5/bin/mg5_aMC ]
 check "Pythia8"           [ -f /opt/mg5/HEPTools/pythia8/lib/libpythia8.so ]
 check "HepMC3"            [ -x /opt/common/bin/HepMC3-config ]
 check "LHAPDF"            which lhapdf-config
-check "onnxruntime"       python3.12 -c "import onnxruntime" 2>/dev/null || { echo "  [INFO] Installing onnxruntime..."; pip3.12 install onnxruntime 2>&1 | tail -1; python3.12 -c "import onnxruntime"; }
+check "onnxruntime"       python3.12 -c "import onnxruntime" 2>/dev/null || { echo "  [INFO] Installing onnxruntime==1.16.3..."; pip3.12 install onnxruntime==1.16.3 2>&1 | tail -1; python3.12 -c "import onnxruntime"; }
 check "DelphesHepMC2"     [ -x /opt/common/bin/DelphesHepMC2 ]
 check "Delphes PCM"       [ -f /opt/common/lib/libClassesDict_rdict.pcm ]
 check "CEPC 4th card"     [ -f /opt/common/cards/delphes_card_CEPC_4th.tcl ]
@@ -175,7 +175,7 @@ if [ -f hss_delphes.root ]; then
                  solver/jet_split/inc/split_processor.hpp \
                  solver/event_merge/inc/merge_processor.hpp \
                  solver/sub_fusion/inc/fusion_processor.hpp; do
-            [ -f "$f" ] && sed -i 's|{:.1f}|%.1f|g; s|{:04d}|%04d|g; s|{}_|%s_|g; s|{}|%s|g' "$f"
+            [ -f "$f" ] && sed -i 's|{:.1f}|%.1f|g; s|{:04d}|%04d|g; s|{}_|%s_|g' "$f"
         done
 
         cat > solver/util/inc/util/format_compat.hpp << 'FMT'
