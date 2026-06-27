@@ -52,7 +52,7 @@ check "MG5_aMC 3.6.7"     [ -f /opt/mg5/bin/mg5_aMC ]
 check "Pythia8"           [ -f /opt/mg5/HEPTools/pythia8/lib/libpythia8.so ]
 check "HepMC3"            [ -x /opt/common/bin/HepMC3-config ]
 check "LHAPDF"            which lhapdf-config
-check "onnxruntime"       python3.12 -c "import onnxruntime" 2>/dev/null || { pip3.12 install onnxruntime -q 2>/dev/null && python3.12 -c "import onnxruntime"; }
+check "onnxruntime"       python3.12 -c "import onnxruntime" 2>/dev/null || { echo "  [INFO] Installing onnxruntime..."; pip3.12 install onnxruntime 2>&1 | tail -1; python3.12 -c "import onnxruntime"; }
 check "DelphesHepMC2"     [ -x /opt/common/bin/DelphesHepMC2 ]
 check "Delphes PCM"       [ -f /opt/common/lib/libClassesDict_rdict.pcm ]
 check "CEPC 4th card"     [ -f /opt/common/cards/delphes_card_CEPC_4th.tcl ]
@@ -203,9 +203,15 @@ FMT
             -DCMAKE_PREFIX_PATH=/usr \
             -DDELPHES_INCLUDE_DIR=/opt/common/include \
             -DDELPHES_EXTERNALS_INCLUDE_DIR=/opt/common/include/external \
-            2>&1 | tail -2
-        make -j4 2>&1 | tail -5
-        make install 2>/dev/null || true
+            > $WORK/build_cmake.log 2>&1
+        echo "  cmake: $(tail -1 $WORK/build_cmake.log)"
+        if make -j4 > $WORK/build_make.log 2>&1; then
+            echo "  make: OK"
+        else
+            echo "  make: FAILED (see below)"
+            tail -30 $WORK/build_make.log
+        fi
+        make install >> $WORK/build_make.log 2>&1 || true
 
         SPLIT=$(find $WORK/build $WORK/install -name split_jet -executable 2>/dev/null | head -1)
         MERGE=$(find $WORK/build $WORK/install -name merge_event -executable 2>/dev/null | head -1)
