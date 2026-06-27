@@ -193,7 +193,7 @@ FMT
         MERGE=$(find $WORK/build $WORK/install -name merge_event -executable 2>/dev/null | head -1)
         FUSE=$(find $WORK/build $WORK/install -name fuse_sub -executable 2>/dev/null | head -1)
 
-        if [ -n "$SPLIT" ] && [ -n "$MERGE" ]; then
+        if [ -n "$SPLIT" ] && [ -n "$MERGE" ] && [ -n "$FUSE" ]; then
             echo "  [PASS] Solver built"
             ((PASS++))
 
@@ -236,7 +236,7 @@ generator: "madgraph"
 YAML
                 rm -rf fuse_out && mkdir fuse_out
                 $FUSE -c cfg_fuse.yaml 2>&1 | grep Creating
-                [ -f fuse_out/fusion_ss_0000.root ] && echo "  [PASS] sub_fusion" && ((PASS++)) || { echo "  [SKIP] sub_fusion (no output)"; ((SKIP++)); }
+                [ -f fuse_out/fusion_ss_0000.root ] && echo "  [PASS] sub_fusion" && ((PASS++)) || { echo "  [FAIL] sub_fusion"; ((FAIL++)); }
             else
                 skip "sub_fusion (binary not built)"
             fi
