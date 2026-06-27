@@ -191,6 +191,7 @@ FMT
 
         SPLIT=$(find $WORK/build $WORK/install -name split_jet -executable 2>/dev/null | head -1)
         MERGE=$(find $WORK/build $WORK/install -name merge_event -executable 2>/dev/null | head -1)
+        FUSE=$(find $WORK/build $WORK/install -name fuse_sub -executable 2>/dev/null | head -1)
 
         if [ -n "$SPLIT" ] && [ -n "$MERGE" ]; then
             echo "  [PASS] Solver built"
@@ -221,6 +222,24 @@ YAML
             rm -rf merge_out && mkdir merge_out
             $MERGE -c cfg_merge.yaml 2>&1 | grep Creating
             [ -f merge_out/merge_ss_0000.root ] && echo "  [PASS] event_merge" && ((PASS++)) || { echo "  [FAIL] event_merge"; ((FAIL++)); }
+
+            # sub_fusion: jet-level substructure
+            if [ -n "$FUSE" ]; then
+                cd $WORK/run
+                cat > cfg_fuse.yaml << YAML
+input: ["$WORK/run/hss_delphes.root"]
+max_entries: ${NEVENTS}
+entries_per_output: ${NEVENTS}
+output_path: "fuse_out"
+channel: "ss"
+generator: "madgraph"
+YAML
+                rm -rf fuse_out && mkdir fuse_out
+                $FUSE -c cfg_fuse.yaml 2>&1 | grep Creating
+                [ -f fuse_out/fusion_ss_0000.root ] && echo "  [PASS] sub_fusion" && ((PASS++)) || { echo "  [SKIP] sub_fusion (no output)"; ((SKIP++)); }
+            else
+                skip "sub_fusion (binary not built)"
+            fi
 
             # ---- Part 6: Plot mjj ----
             echo ""
