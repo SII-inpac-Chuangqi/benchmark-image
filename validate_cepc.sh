@@ -1,6 +1,6 @@
 #!/bin/bash
 # Validation script for CEPC+darkshine image
-# Usage: apptainer exec --fakeroot --bind /cefs:/cefs cepc-darkshine.sif bash validate_cepc.sh
+# Usage: apptainer exec --fakeroot cepc-darkshine.sif bash validate_cepc.sh
 
 set -e
 source /opt/common/bin/thisroot.sh
@@ -17,7 +17,6 @@ echo "--- Core ---"
 check "ROOT"           which root
 check "Python 3.12"    python3.12 --version
 check "GCC"            gcc --version
-check "pdfTeX"         which pdftex
 
 echo ""
 echo "--- Physics Libraries ---"
