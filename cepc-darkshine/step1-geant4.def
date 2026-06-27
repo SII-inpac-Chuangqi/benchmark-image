@@ -7,7 +7,7 @@ From: ../common/common.sif
 %post
     INSTALL_PREFIX=/opt/common
     set -e
-    dnf -y install xerces-c-devel
+    dnf -y install xerces-c-devel yaml-cpp-devel
     mkdir -p /tmp/build
     cd /tmp/build
 
@@ -23,7 +23,8 @@ From: ../common/common.sif
         -DGEANT4_BUILD_MULTITHREADED=ON
     make -j4 && make install
     rm -rf ${INSTALL_PREFIX}/share/Geant4-*/data/RealSurface* \
-           ${INSTALL_PREFIX}/share/Geant4-*/data/G4NDL*
+           ${INSTALL_PREFIX}/share/Geant4-*/data/G4NDL* \
+           ${INSTALL_PREFIX}/share/Geant4-*/data/G4EMLOW*
     rm -rf ${INSTALL_PREFIX}/share/Geant4-*/examples
     echo "source ${INSTALL_PREFIX}/bin/geant4.sh" >> /etc/profile.d/common.sh
     cd /tmp/build && rm -rf Geant4-*

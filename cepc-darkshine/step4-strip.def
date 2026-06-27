@@ -1,26 +1,18 @@
 Bootstrap: localimage
-From: lhc-step3.sif
+From: cepc-step3.sif
 
 %post
     set -e
 
-    # Strip shared libraries
     find /opt/common/lib -name '*.so' -exec strip --strip-unneeded {} \; 2>/dev/null || true
     find /opt/common/lib64 -name '*.so' -exec strip --strip-unneeded {} \; 2>/dev/null || true
     find /opt/mg5/HEPTools -name '*.so' -exec strip --strip-unneeded {} \; 2>/dev/null || true
-
-    # Strip binaries
     find /opt/common/bin -type f -executable -exec strip {} \; 2>/dev/null || true
-
-    # Remove static libraries
     find /opt -name '*.a' -delete 2>/dev/null || true
-
-    # Clean unused MG5 vendors
     rm -rf /opt/mg5/vendor/SudGen 2>/dev/null || true
     rm -rf /opt/mg5/tests 2>/dev/null || true
     dnf clean all 2>/dev/null || true
-    rm -rf /var/cache/dnf /var/log/dnf* /var/lib/dnf
-    rm -rf /root/.cache/pip
+    rm -rf /var/cache/dnf /var/log/dnf*
 
 %environment
     export INSTALL_PREFIX=/opt/common
