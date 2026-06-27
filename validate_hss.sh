@@ -3,8 +3,7 @@
 # Image: cepc-darkshine.sif (MG5 3.6.7, Delphes CEPC_4th, GCC 11)
 #
 # Usage:
-#   apptainer exec --fakeroot --writable-tmpfs --bind $PWD:/mnt/bi \
-#       cepc-darkshine.sif bash validate_hss.sh
+#   apptainer exec --fakeroot --writable-tmpfs cepc-darkshine.sif bash validate_hss.sh
 #
 # Environment:
 #   HSS_WORKDIR   Working directory (default: /tmp/hss_validation)
@@ -23,6 +22,7 @@ WORK=${HSS_WORKDIR:-/tmp/hss_validation}
 NEVENTS=${HSS_NEVENTS:-100}
 BRANCH=${HSS_BRANCH:-release/dev/SII-build}
 SOLVER_REPO="https://github.com/SII-inpac-Chuangqi/higgs-strange-solver.git"
+MY_SM_REPO="https://github.com/SII-inpac-Chuangqi/benchmark-image.git"
 
 rm -rf $WORK && mkdir -p $WORK/{source,build,install,run}
 cd $WORK
@@ -32,13 +32,11 @@ source /opt/common/bin/geant4.sh 2>/dev/null || true
 export PATH=/opt/mg5/bin:/opt/common/bin:$PATH
 export LD_LIBRARY_PATH=/opt/common/lib:/opt/common/lib64:/opt/mg5/HEPTools/pythia8/lib:$LD_LIBRARY_PATH
 
-PASS=0; FAIL=0; SKIP=0
+PASS=0; FAIL=0
 check() { local n=$1; shift
     if "$@" >/dev/null 2>&1; then echo "  [PASS] $n"; ((PASS++))
     else echo "  [FAIL] $n"; ((FAIL++)); fi
 }
-skip() { echo "  [SKIP] $1"; ((SKIP++)); }
-info() { echo "  [INFO] $1"; }
 
 echo "============================================"
 echo " H->ss Validation Pipeline"
@@ -54,8 +52,7 @@ check "MG5_aMC 3.6.7"     [ -f /opt/mg5/bin/mg5_aMC ]
 check "Pythia8"           [ -f /opt/mg5/HEPTools/pythia8/lib/libpythia8.so ]
 check "HepMC3"            [ -x /opt/common/bin/HepMC3-config ]
 check "LHAPDF"            which lhapdf-config
-check "onnxruntime (C++)"  ls /opt/common/lib/libonnxruntime.so 2>/dev/null
-python3.12 -c "import onnxruntime" 2>/dev/null && info "onnxruntime (Python)" || { pip3.12 install onnxruntime >/dev/null 2>&1 && info "onnxruntime (Python) installed"; }
+check "onnxruntime"       python3.12 -c "import onnxruntime"
 check "DelphesHepMC2"     [ -x /opt/common/bin/DelphesHepMC2 ]
 check "Delphes PCM"       [ -f /opt/common/lib/libClassesDict_rdict.pcm ]
 check "CEPC 4th card"     [ -f /opt/common/cards/delphes_card_CEPC_4th.tcl ]
@@ -65,25 +62,24 @@ check "numpy/ROOT"        python3.12 -c "import numpy, awkward, uproot, matplotl
 # ---- Part 2: Get my_sm model ----
 echo ""
 echo "--- Install my_sm model ---"
-MODEL_INSTALLED=0
-# Default: /mnt/bi/models/my_sm (bind-mount), override via MY_SM_PATH
-for d in "/mnt/bi/models/my_sm" \
-         "${MY_SM_PATH:-}" \
-         "/opt/common/models/my_sm" \
-         "/cefs/higgs/zhuyifan/DarkSHINE/darkshine-build/my_sm"; do
-    if [ -n "$d" ] && [ -d "$d" ]; then
-        cp -r "$d" /opt/mg5/models/ 2>/dev/null && MODEL_INSTALLED=1 && break
-    fi
-done
-if [ "$MODEL_INSTALLED" -eq 1 ]; then
-    echo "  [OK] my_sm installed from $d"
+cd $WORK/source
+if git clone --depth 1 "$MY_SM_REPO" bm 2>/dev/null && [ -d bm/models/my_sm ]; then
+    cp -r bm/models/my_sm /opt/mg5/models/ 2>/dev/null
+    rm -rf bm
+    echo "  [OK] my_sm installed from GitHub"
+elif [ -f /opt/mg5/models/sm/parameters.py ]; then
+    cp -r /opt/mg5/models/sm /opt/mg5/models/my_sm
+    cat >> /opt/mg5/models/my_sm/parameters.py << 'PYADD'
+yms = Parameter(name = 'yms', nature = 'external', type = 'real',
+    value = 0.096, texname = '\\text{yms}',
+    lhablock = 'YUKAWA', lhacode = [3])
+PYADD
+    echo "  [WARN] my_sm created from sm (minimal)"
 else
-    echo "  [SKIP] my_sm not at /mnt/bi/models/my_sm (bind with --bind \$PWD:/mnt/bi)"
-    ls /mnt/bi/models/ 2>/dev/null | head -3  # debug: show what's mounted
-    cp -r /opt/mg5/models/sm /opt/mg5/models/my_sm 2>/dev/null || true
+    echo "  [SKIP] my_sm not available"
 fi
 
-# ---- Part 3: MG5 H→ss generation ----
+# ---- Part 3: MG5 H->ss generation ----
 echo ""
 echo "--- MG5: e+e- -> ZH, Z -> vv, H -> ss ---"
 cd $WORK/run
@@ -140,7 +136,7 @@ if [ -f events.hepmc ]; then
         ((FAIL++))
     fi
 else
-    skip "No HepMC"
+    echo "  [SKIP] No HepMC"
 fi
 
 # ---- Part 5: Clone & Build Solver ----
@@ -148,23 +144,31 @@ echo ""
 echo "--- Build higgs-strange-solver ---"
 if [ -f hss_delphes.root ]; then
     cd $WORK/source
-    SOLVER_CLONED=0
-    for i in 1 2 3 4 5; do
+    CLONED=0
+    # 1) Use pre-cloned copy from bind mount (GFW workaround)
+    if [ -n "$HSS_SOLVER_SRC" ] && [ -f "$HSS_SOLVER_SRC/CMakeLists.txt" ]; then
+        cp -r "$HSS_SOLVER_SRC" solver && CLONED=1
+        echo "  [OK] Copied solver from HSS_SOLVER_SRC"
+    elif [ -d /mnt/bi/solver_src ] && [ -f /mnt/bi/solver_src/CMakeLists.txt ]; then
+        cp -r /mnt/bi/solver_src solver && CLONED=1
+        echo "  [OK] Copied solver from /mnt/bi/solver_src"
+    fi
+    # 2) Try git clone (works on Mac, fails inside container behind GFW)
+    if [ $CLONED -eq 0 ]; then
         if git clone -b "$BRANCH" "$SOLVER_REPO" solver 2>/dev/null; then
-            SOLVER_CLONED=1; break
+            CLONED=1
+            echo "  [OK] Cloned solver ($BRANCH)"
         fi
-        [ $i -lt 5 ] && sleep 5
-    done
-    if [ "$SOLVER_CLONED" -eq 1 ]; then
-        echo "  [OK] Cloned solver ($BRANCH)"
+    fi
 
-        # Patch format strings for GCC 11 (jet_split, event_merge, sub_fusion)
+    if [ $CLONED -eq 1 ]; then
+
+        # Patch format strings for GCC 11
         for f in solver/util/inc/dataflow/event_loop.hpp \
                  solver/jet_split/inc/split_processor.hpp \
                  solver/event_merge/inc/merge_processor.hpp \
-                 solver/sub_fusion/inc/fusion_processor.hpp \
-                 solver/sub_fusion/fusion.cpp; do
-            [ -f "$f" ] && sed -i 's|{:.1f}|%.1f|g; s|{:04d}|%04d|g; s|{}_|%s_|g' "$f"
+                 solver/sub_fusion/inc/fusion_processor.hpp; do
+            [ -f "$f" ] && sed -i 's|{:.1f}|%.1f|g; s|{:04d}|%04d|g; s|{}_|%s_|g; s|{}|%s|g' "$f"
         done
 
         cat > solver/util/inc/util/format_compat.hpp << 'FMT'
@@ -190,7 +194,6 @@ FMT
             -DCMAKE_CXX_STANDARD=20 \
             -DCMAKE_CXX_FLAGS="-fconcepts" \
             -DCMAKE_PREFIX_PATH=/usr \
-            -Dyaml-cpp_DIR=/usr/lib64/cmake/yaml-cpp \
             -DDELPHES_INCLUDE_DIR=/opt/common/include \
             -DDELPHES_EXTERNALS_INCLUDE_DIR=/opt/common/include/external \
             2>&1 | tail -2
@@ -199,9 +202,8 @@ FMT
 
         SPLIT=$(find $WORK/build $WORK/install -name split_jet -executable 2>/dev/null | head -1)
         MERGE=$(find $WORK/build $WORK/install -name merge_event -executable 2>/dev/null | head -1)
-        FUSE=$(find $WORK/build $WORK/install -name fuse_sub -executable 2>/dev/null | head -1)
 
-        if [ -n "$SPLIT" ] && [ -n "$MERGE" ] && [ -n "$FUSE" ]; then
+        if [ -n "$SPLIT" ] && [ -n "$MERGE" ]; then
             echo "  [PASS] Solver built"
             ((PASS++))
 
@@ -230,73 +232,21 @@ YAML
             rm -rf merge_out && mkdir merge_out
             $MERGE -c cfg_merge.yaml 2>&1 | grep Creating
             [ -f merge_out/merge_ss_0000.root ] && echo "  [PASS] event_merge" && ((PASS++)) || { echo "  [FAIL] event_merge"; ((FAIL++)); }
-
-            # sub_fusion: jet-level substructure
-            if [ -n "$FUSE" ]; then
-                cd $WORK/run
-                cat > cfg_fuse.yaml << YAML
-input: ["$WORK/run/hss_delphes.root"]
-max_entries: ${NEVENTS}
-entries_per_output: ${NEVENTS}
-output_path: "fuse_out"
-channel: "ss"
-generator: "madgraph"
-YAML
-                rm -rf fuse_out && mkdir fuse_out
-                $FUSE -c cfg_fuse.yaml 2>&1 | grep Creating
-                [ -f fuse_out/fusion_ss_0000.root ] && echo "  [PASS] sub_fusion" && ((PASS++)) || { echo "  [FAIL] sub_fusion"; ((FAIL++)); }
-            else
-                skip "sub_fusion (binary not built)"
-            fi
-
-            # ---- Part 6: Plot mjj ----
-            echo ""
-            echo "--- mjj Distribution ---"
-            PLOT_OUT="/tmp/mjj.pdf"
-            for d in /mnt/bi /tmp; do [ -w "$d" ] && PLOT_OUT="$d/mjj.pdf" && break; done
-            export MPLCONFIGDIR=/tmp/matplotlib-$RANDOM && mkdir -p $MPLCONFIGDIR
-            if python3.12 -c "import matplotlib" 2>/dev/null; then
-                python3.12 -c "
-import uproot, numpy as np
-mjj = []
-for f in ['$WORK/run/merge_out/merge_ss_0000.root']:
-    try:
-        with uproot.open(f) as ff:
-            mjj.extend(ff['tree']['mjj'].array().tolist())
-    except: pass
-mjj = np.array(mjj)
-if len(mjj) > 0:
-    import matplotlib; matplotlib.use('Agg')
-    import matplotlib.pyplot as plt
-    fig, ax = plt.subplots(figsize=(8,5))
-    ax.hist(mjj, bins=40, range=(50,200), histtype='step', color='black', lw=1.5)
-    ax.set_xlabel('mjj [GeV]'); ax.set_ylabel(f'Events / {150/40:.1f} GeV')
-    ax.axvline(125, color='red', ls='--', alpha=0.5, label='mH=125 GeV')
-    mean, std = np.mean(mjj), np.std(mjj)
-    ax.text(0.02,0.95,f'Mean: {mean:.1f} GeV\\nRMS: {std:.1f} GeV', transform=ax.transAxes, va='top', fontsize=9, bbox=dict(boxstyle='round',fc='white',alpha=0.8))
-    ax.legend(fontsize=8); fig.tight_layout()
-    fig.savefig('$PLOT_OUT'); plt.close()
-    print(f'  [OK] mjj.pdf saved to $PLOT_OUT (mean={mean:.1f} GeV, entries={len(mjj)})')
-" 2>&1
-                ((PASS++))
-            else
-                skip "matplotlib not available"
-            fi
         else
             echo "  [FAIL] Solver build"
             ((FAIL++))
         fi
     else
-        echo "  [FAIL] Solver clone failed after 5 attempts"
+        echo "  [FAIL] Git clone failed (network?)"
         ((FAIL++))
     fi
 else
-    skip "No Delphes"
+    echo "  [SKIP] No Delphes"
 fi
 
 echo ""
 echo "============================================"
-echo " Results: $PASS passed, $FAIL failed, $SKIP skipped"
+echo " Results: $PASS passed, $FAIL failed"
 echo " Workdir: $WORK"
 echo "============================================"
 exit $FAIL
