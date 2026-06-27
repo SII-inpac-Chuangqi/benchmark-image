@@ -56,19 +56,34 @@ check "Python 3.12"       python3.12 --version
 # ---- Part 2: Install build deps ----
 echo ""
 echo "--- Install Dependencies ---"
-dnf -y install eigen3-devel json-devel gsl-devel hdf5-devel xerces-c-devel 2>&1 | tail -1
+dnf -y install eigen3-devel nlohmann-json-devel gsl-devel hdf5-devel xerces-c-devel 2>&1 | tail -1
 check "Eigen3"            [ -d /usr/include/eigen3 ]
 check "nlohmann/json"     [ -f /usr/include/nlohmann/json.hpp ]
 check "GSL"               [ -f /usr/include/gsl/gsl_sf.h ]
 
-# ---- Part 3: Clone darkshine-simulation ----
+# ---- Part 3: Get darkshine-simulation source ----
 echo ""
-echo "--- Clone darkshine-simulation ---"
+echo "--- Get darkshine-simulation ---"
 cd $WORK/source
-if git clone -b "$BRANCH" "$DS_REPO" darkshine 2>/dev/null; then
-    echo "  [OK] Cloned ($BRANCH)"
+DS_SRC=""
+# Try bind-mounted repo first (clone on host via SSH, bind into container)
+for d in "${DS_SRC_PATH:-}" "/mnt/darkshine" "/mnt/bi/../darkshine-simulation"; do
+    if [ -n "$d" ] && [ -d "$d" ]; then
+        ln -s "$d" darkshine 2>/dev/null && DS_SRC="bind:$d" && break
+    fi
+done
+# Fallback: git clone (works only on networks without GFW)
+if [ -z "$DS_SRC" ]; then
+    if git clone -b "$BRANCH" "$DS_REPO" darkshine 2>/dev/null; then
+        DS_SRC="git:$BRANCH"
+    fi
+fi
+if [ -n "$DS_SRC" ]; then
+    echo "  [OK] Source: $DS_SRC"
 else
-    echo "  [FAIL] Git clone failed (network?)"
+    echo "  [FAIL] No source. Clone outside container first:"
+    echo "    git clone $DS_REPO /path/to/darkshine-simulation"
+    echo "    Then: DS_SRC_PATH=/path/to/darkshine-simulation apptainer exec --bind ..."
     ((FAIL++)); echo ""; echo "Results: $PASS passed, $FAIL failed"; exit $FAIL
 fi
 
