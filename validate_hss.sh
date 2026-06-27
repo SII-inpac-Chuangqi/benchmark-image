@@ -64,21 +64,19 @@ check "numpy/ROOT"        python3.12 -c "import numpy, awkward, uproot, matplotl
 # ---- Part 2: Get my_sm model ----
 echo ""
 echo "--- Install my_sm model ---"
-cd $WORK/source
 MODEL_INSTALLED=0
-# Try benchmark-image repo in current dir (if running from it)
-if [ -d ./models/my_sm ]; then
-    cp -r ./models/my_sm /opt/mg5/models/ 2>/dev/null && MODEL_INSTALLED=1
-elif [ -d ../models/my_sm ]; then
-    cp -r ../models/my_sm /opt/mg5/models/ 2>/dev/null && MODEL_INSTALLED=1
-# Try CEFS (requires --bind /cefs:/cefs)
-elif [ -d /cefs/higgs/zhuyifan/DarkSHINE/darkshine-build/my_sm ]; then
-    cp -r /cefs/higgs/zhuyifan/DarkSHINE/darkshine-build/my_sm /opt/mg5/models/ 2>/dev/null && MODEL_INSTALLED=1
-fi
+ORIG_DIR=$(pwd)  # Save before cd in Part 3
+# Try benchmark-image repo (where user runs from)
+for d in "$ORIG_DIR/models/my_sm" "$ORIG_DIR/../models/my_sm" \
+         "/cefs/higgs/zhuyifan/DarkSHINE/darkshine-build/my_sm"; do
+    if [ -d "$d" ]; then
+        cp -r "$d" /opt/mg5/models/ 2>/dev/null && MODEL_INSTALLED=1 && break
+    fi
+done
 if [ "$MODEL_INSTALLED" -eq 1 ]; then
-    echo "  [OK] my_sm installed from local copy"
+    echo "  [OK] my_sm installed from $d"
 else
-    echo "  [WARN] my_sm not found — will try sm fallback (may not generate h>ss)"
+    echo "  [WARN] my_sm not found — H>ss will fail. Bind benchmark-image or CEFS."
     cp -r /opt/mg5/models/sm /opt/mg5/models/my_sm 2>/dev/null || true
 fi
 
