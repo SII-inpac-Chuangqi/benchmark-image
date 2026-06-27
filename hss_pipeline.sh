@@ -2,20 +2,14 @@
 # Full H→ss̄ pipeline: MG5 → Delphes → higgs-strange-solver (jet_split + event_merge)
 # Image: cepc-darkshine.sif (MG5 3.6.7, Delphes with CEPC_4th card)
 # Usage:
-#   apptainer exec --fakeroot --bind /cefs:/cefs --bind /hpcfs:/hpcfs \
+#   apptainer exec --fakeroot --bind /cefs:/cefs \
 #       cepc-darkshine.sif bash hss_pipeline.sh
 #
-# Requirements:
-#   - Solver source at /hpcfs/cepc/higgsgpu/zhuchunxiang/higgs-strange-solver
-#   - Findonnxruntime.cmake already in solver's cmake/ dir (or CEFS copy)
-#   - GCC 11 with -fconcepts (solver patched for GCC 11 compatibility)
-#
-# Output: /tmp/hss_pipeline_out/ (but prefer /cefs/... for persistence)
+# Solver: cloned from GitHub SII-inpac-Chuangqi/higgs-strange-solver (dev/SII-build)
+# Output: /tmp/hss_pipeline_out/ (set HSS_OUT for persistence)
 
 set +e
 
-# Use CEFS for persistence across apptainer exec calls
-# OUT=/cefs/higgs/zhuyifan/DarkSHINE/darkshine-build/hss_validation
 OUT=${HSS_OUT:-/tmp/hss_pipeline_out}
 rm -rf $OUT && mkdir -p $OUT && cd $OUT
 
@@ -96,14 +90,41 @@ else
     echo "  [SKIP] No HepMC input"
 fi
 
-# ---- Step 3: Build Solver ----
+# ---- Step 3: Clone & Build Solver from GitHub ----
 echo ""
-echo "--- Step 3: Build higgs-strange-solver ---"
+echo "--- Step 3: Clone & Build higgs-strange-solver ---"
 if [ -f hss_delphes.root ]; then
-    SOLVER_SRC=${HSS_SOLVER_SRC:-/hpcfs/cepc/higgsgpu/zhuchunxiang/higgs-strange-solver}
+    SOLVER_REPO="https://github.com/SII-inpac-Chuangqi/higgs-strange-solver.git"
+    SOLVER_BRANCH="${HSS_BRANCH:-dev/SII-build}"
+    SOLVER_SRC=$OUT/solver_src
     SOLVER_BUILD=$OUT/solver_build
-    rm -rf $SOLVER_BUILD && mkdir -p $SOLVER_BUILD && cd $SOLVER_BUILD
 
+    echo "  Cloning $SOLVER_REPO ($SOLVER_BRANCH)..."
+    git clone -b "$SOLVER_BRANCH" "$SOLVER_REPO" "$SOLVER_SRC" 2>&1 | tail -2
+
+    # Ensure Findonnxruntime.cmake exists
+    if [ ! -f "$SOLVER_SRC/cmake/Findonnxruntime.cmake" ]; then
+        cat > "$SOLVER_SRC/cmake/Findonnxruntime.cmake" << 'CMAKE'
+find_path(onnxruntime_INCLUDE_DIR onnxruntime_c_api.h
+    PATHS /opt/common/include/onnxruntime
+    PATH_SUFFIXES core/session
+    NO_DEFAULT_PATH)
+find_library(onnxruntime_LIBRARY onnxruntime
+    PATHS /opt/common/lib
+    NO_DEFAULT_PATH)
+include(FindPackageHandleStandardArgs)
+find_package_handle_standard_args(onnxruntime
+    REQUIRED_VARS onnxruntime_LIBRARY onnxruntime_INCLUDE_DIR)
+if(onnxruntime_FOUND AND NOT TARGET onnxruntime::onnxruntime)
+    add_library(onnxruntime::onnxruntime SHARED IMPORTED)
+    set_target_properties(onnxruntime::onnxruntime PROPERTIES
+        INTERFACE_INCLUDE_DIRECTORIES "${onnxruntime_INCLUDE_DIR}"
+        IMPORTED_LOCATION "${onnxruntime_LIBRARY}")
+endif()
+CMAKE
+    fi
+
+    rm -rf $SOLVER_BUILD && mkdir -p $SOLVER_BUILD && cd $SOLVER_BUILD
     export DELPHES_DIR=/opt/common
     cmake $SOLVER_SRC \
         -DCMAKE_CXX_STANDARD=20 \
