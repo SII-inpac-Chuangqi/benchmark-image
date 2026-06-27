@@ -38,6 +38,7 @@ check() { local n=$1; shift
     else echo "  [FAIL] $n"; ((FAIL++)); fi
 }
 skip() { echo "  [SKIP] $1"; ((SKIP++)); }
+info() { echo "  [INFO] $1"; }
 
 echo "============================================"
 echo " H->ss Validation Pipeline"
@@ -54,8 +55,7 @@ check "Pythia8"           [ -f /opt/mg5/HEPTools/pythia8/lib/libpythia8.so ]
 check "HepMC3"            [ -x /opt/common/bin/HepMC3-config ]
 check "LHAPDF"            which lhapdf-config
 check "onnxruntime (C++)"  ls /opt/common/lib/libonnxruntime.so 2>/dev/null
-# Python onnxruntime may not be installed in common — install if missing
-python3.12 -c "import onnxruntime" 2>/dev/null || pip3.12 install onnxruntime 2>/dev/null | tail -1
+python3.12 -c "import onnxruntime" 2>/dev/null && info "onnxruntime (Python)" || pip3.12 install onnxruntime 2>/dev/null | tail -1
 check "DelphesHepMC2"     [ -x /opt/common/bin/DelphesHepMC2 ]
 check "Delphes PCM"       [ -f /opt/common/lib/libClassesDict_rdict.pcm ]
 check "CEPC 4th card"     [ -f /opt/common/cards/delphes_card_CEPC_4th.tcl ]
