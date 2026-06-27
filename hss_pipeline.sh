@@ -95,34 +95,21 @@ echo ""
 echo "--- Step 3: Clone & Build higgs-strange-solver ---"
 if [ -f hss_delphes.root ]; then
     SOLVER_REPO="https://github.com/SII-inpac-Chuangqi/higgs-strange-solver.git"
-    SOLVER_BRANCH="${HSS_BRANCH:-dev/SII-build}"
+    SOLVER_BRANCH="${HSS_BRANCH:-release/dev/SII-build}"
     SOLVER_SRC=$OUT/solver_src
     SOLVER_BUILD=$OUT/solver_build
 
     echo "  Cloning $SOLVER_REPO ($SOLVER_BRANCH)..."
     git clone -b "$SOLVER_BRANCH" "$SOLVER_REPO" "$SOLVER_SRC" 2>&1 | tail -2
 
-    # Ensure Findonnxruntime.cmake exists
-    if [ ! -f "$SOLVER_SRC/cmake/Findonnxruntime.cmake" ]; then
-        cat > "$SOLVER_SRC/cmake/Findonnxruntime.cmake" << 'CMAKE'
-find_path(onnxruntime_INCLUDE_DIR onnxruntime_c_api.h
-    PATHS /opt/common/include/onnxruntime
-    PATH_SUFFIXES core/session
-    NO_DEFAULT_PATH)
-find_library(onnxruntime_LIBRARY onnxruntime
-    PATHS /opt/common/lib
-    NO_DEFAULT_PATH)
-include(FindPackageHandleStandardArgs)
-find_package_handle_standard_args(onnxruntime
-    REQUIRED_VARS onnxruntime_LIBRARY onnxruntime_INCLUDE_DIR)
-if(onnxruntime_FOUND AND NOT TARGET onnxruntime::onnxruntime)
-    add_library(onnxruntime::onnxruntime SHARED IMPORTED)
-    set_target_properties(onnxruntime::onnxruntime PROPERTIES
-        INTERFACE_INCLUDE_DIRECTORIES "${onnxruntime_INCLUDE_DIR}"
-        IMPORTED_LOCATION "${onnxruntime_LIBRARY}")
-endif()
-CMAKE
-    fi
+    # Patch for GCC 11: hss::format uses Python-style {:.1f}, snprintf needs %f
+    for f in \
+        "$SOLVER_SRC/util/inc/dataflow/event_loop.hpp" \
+        "$SOLVER_SRC/jet_split/inc/split_processor.hpp" \
+        "$SOLVER_SRC/event_merge/inc/merge_processor.hpp" \
+        "$SOLVER_SRC/sub_fusion/inc/fusion_processor.hpp"; do
+        [ -f "$f" ] && sed -i 's|{:.1f}|%.1f|g; s|{:04d}|%04d|g; s|{}_|%s_|g; s|{}|%s|g' "$f"
+    done
 
     rm -rf $SOLVER_BUILD && mkdir -p $SOLVER_BUILD && cd $SOLVER_BUILD
     export DELPHES_DIR=/opt/common
@@ -134,8 +121,8 @@ CMAKE
         2>&1 | tail -3
     make -j4 2>&1 | tail -5
 
-    SPLIT_BIN=$(find . -name split_jet -type f -executable 2>/dev/null | head -1)
-    MERGE_BIN=$(find . -name merge_event -type f -executable 2>/dev/null | head -1)
+    SPLIT_BIN=$(find $SOLVER_BUILD -name split_jet -type f -executable 2>/dev/null | head -1)
+    MERGE_BIN=$(find $SOLVER_BUILD -name merge_event -type f -executable 2>/dev/null | head -1)
 
     if [ -n "$SPLIT_BIN" ] && [ -n "$MERGE_BIN" ]; then
         echo "  [PASS] Solver built: split_jet + merge_event"
