@@ -224,6 +224,39 @@ YAML
             rm -rf merge_out && mkdir merge_out
             $MERGE -c cfg_merge.yaml 2>&1 | grep Creating
             [ -f merge_out/merge_ss_0000.root ] && echo "  [PASS] event_merge" && ((PASS++)) || { echo "  [FAIL] event_merge"; ((FAIL++)); }
+
+            # ---- Part 6: Plot mjj ----
+            echo ""
+            echo "--- mjj Distribution ---"
+            PLOT_OUT="/tmp/hss_validation/mjj.pdf"
+            for d in /mnt/bi /tmp; do [ -w "$d" ] && PLOT_OUT="$d/mjj.pdf" && break; done
+            if python3.12 -c "import matplotlib" 2>/dev/null; then
+                python3.12 -c "
+import uproot, numpy as np
+mjj = []
+for f in ['$WORK/run/merge_out/merge_ss_0000.root']:
+    try:
+        with uproot.open(f) as ff:
+            mjj.extend(ff['tree']['mjj'].array().tolist())
+    except: pass
+mjj = np.array(mjj)
+if len(mjj) > 0:
+    import matplotlib; matplotlib.use('Agg')
+    import matplotlib.pyplot as plt
+    fig, ax = plt.subplots(figsize=(8,5))
+    ax.hist(mjj, bins=40, range=(50,200), histtype='step', color='black', lw=1.5)
+    ax.set_xlabel('mjj [GeV]'); ax.set_ylabel(f'Events / {150/40:.1f} GeV')
+    ax.axvline(125, color='red', ls='--', alpha=0.5, label='mH=125 GeV')
+    mean, std = np.mean(mjj), np.std(mjj)
+    ax.text(0.02,0.95,f'Mean: {mean:.1f} GeV\\nRMS: {std:.1f} GeV', transform=ax.transAxes, va='top', fontsize=9, bbox=dict(boxstyle='round',fc='white',alpha=0.8))
+    ax.legend(fontsize=8); fig.tight_layout()
+    fig.savefig('$PLOT_OUT'); plt.close()
+    print(f'  [OK] mjj.pdf saved to $PLOT_OUT (mean={mean:.1f} GeV, entries={len(mjj)})')
+" 2>&1
+                ((PASS++))
+            else
+                echo "  [SKIP] matplotlib not available"
+            fi
         else
             echo "  [FAIL] Solver build"
             ((FAIL++))
