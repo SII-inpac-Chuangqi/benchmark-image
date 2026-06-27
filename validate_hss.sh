@@ -66,9 +66,9 @@ check "numpy/ROOT"        python3.12 -c "import numpy, awkward, uproot, matplotl
 echo ""
 echo "--- Install my_sm model ---"
 MODEL_INSTALLED=0
-# Check env var, bundled, or bind-mounted paths
-for d in "${MY_SM_PATH:-}" \
-         "/mnt/bi/models/my_sm" \
+# Default: /mnt/bi/models/my_sm (bind-mount), override via MY_SM_PATH
+for d in "/mnt/bi/models/my_sm" \
+         "${MY_SM_PATH:-}" \
          "/opt/common/models/my_sm" \
          "/cefs/higgs/zhuyifan/DarkSHINE/darkshine-build/my_sm"; do
     if [ -n "$d" ] && [ -d "$d" ]; then
@@ -78,9 +78,7 @@ done
 if [ "$MODEL_INSTALLED" -eq 1 ]; then
     echo "  [OK] my_sm installed from $d"
 else
-    echo "  [WARN] my_sm not found. Bind-mount your benchmark-image clone:"
-    echo "  Hint: apptainer exec ... --bind \$PWD:/mnt/bi cepc.sif bash validate_hss.sh"
-    echo "        MY_SM_PATH=/mnt/bi/models/my_sm"
+    skip "my_sm model (bind with --bind \$PWD:/mnt/bi or set MY_SM_PATH)"
     cp -r /opt/mg5/models/sm /opt/mg5/models/my_sm 2>/dev/null || true
 fi
 
