@@ -52,7 +52,7 @@ check "MG5_aMC 3.6.7"     [ -f /opt/mg5/bin/mg5_aMC ]
 check "Pythia8"           [ -f /opt/mg5/HEPTools/pythia8/lib/libpythia8.so ]
 check "HepMC3"            [ -x /opt/common/bin/HepMC3-config ]
 check "LHAPDF"            which lhapdf-config
-check "onnxruntime"       python3.12 -c "import onnxruntime"
+check "onnxruntime"       python3.12 -c "import onnxruntime" 2>/dev/null || { pip3.12 install onnxruntime -q 2>/dev/null && python3.12 -c "import onnxruntime"; }
 check "DelphesHepMC2"     [ -x /opt/common/bin/DelphesHepMC2 ]
 check "Delphes PCM"       [ -f /opt/common/lib/libClassesDict_rdict.pcm ]
 check "CEPC 4th card"     [ -f /opt/common/cards/delphes_card_CEPC_4th.tcl ]
@@ -63,20 +63,27 @@ check "numpy/ROOT"        python3.12 -c "import numpy, awkward, uproot, matplotl
 echo ""
 echo "--- Install my_sm model ---"
 cd $WORK/source
-if git clone --depth 1 "$MY_SM_REPO" bm 2>/dev/null && [ -d bm/models/my_sm ]; then
+# 1) Try bind-mounted benchmark-image (GFW workaround)
+if [ -d /mnt/bi/models/my_sm ]; then
+    cp -r /mnt/bi/models/my_sm /opt/mg5/models/ 2>/dev/null
+    echo "  [OK] my_sm from /mnt/bi/models/my_sm"
+# 2) Try git clone (works on Mac, fails inside container)
+elif git clone --depth 1 "$MY_SM_REPO" bm 2>/dev/null && [ -d bm/models/my_sm ]; then
     cp -r bm/models/my_sm /opt/mg5/models/ 2>/dev/null
     rm -rf bm
     echo "  [OK] my_sm installed from GitHub"
+# 3) Fallback: create minimal my_sm from sm (incomplete — missing vertices)
 elif [ -f /opt/mg5/models/sm/parameters.py ]; then
     cp -r /opt/mg5/models/sm /opt/mg5/models/my_sm
     cat >> /opt/mg5/models/my_sm/parameters.py << 'PYADD'
 yms = Parameter(name = 'yms', nature = 'external', type = 'real',
-    value = 0.096, texname = '\\text{yms}',
+    value = 0.096, texname = '\\\\text{yms}',
     lhablock = 'YUKAWA', lhacode = [3])
 PYADD
-    echo "  [WARN] my_sm created from sm (minimal)"
+    echo "  [WARN] my_sm created from sm (minimal, may fail)"
 else
-    echo "  [SKIP] my_sm not available"
+    echo "  [FAIL] my_sm not available"
+    ((FAIL++))
 fi
 
 # ---- Part 3: MG5 H->ss generation ----
