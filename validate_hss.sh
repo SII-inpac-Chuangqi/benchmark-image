@@ -157,7 +157,7 @@ if [ -f hss_delphes.root ]; then
                  solver/event_merge/inc/merge_processor.hpp \
                  solver/sub_fusion/inc/fusion_processor.hpp \
                  solver/sub_fusion/fusion.cpp; do
-            [ -f "$f" ] && sed -i 's|{:.1f}|%.1f|g; s|{:04d}|%04d|g; s|{}_|%s_|g; s|{}|%s|g' "$f"
+            [ -f "$f" ] && sed -i 's|{:.1f}|%.1f|g; s|{:04d}|%04d|g; s|{}_|%s_|g' "$f"
         done
 
         cat > solver/util/inc/util/format_compat.hpp << 'FMT'
