@@ -78,7 +78,8 @@ done
 if [ "$MODEL_INSTALLED" -eq 1 ]; then
     echo "  [OK] my_sm installed from $d"
 else
-    skip "my_sm model (bind with --bind \$PWD:/mnt/bi or set MY_SM_PATH)"
+    echo "  [SKIP] my_sm not at /mnt/bi/models/my_sm (bind with --bind \$PWD:/mnt/bi)"
+    ls /mnt/bi/models/ 2>/dev/null | head -3  # debug: show what's mounted
     cp -r /opt/mg5/models/sm /opt/mg5/models/my_sm 2>/dev/null || true
 fi
 
