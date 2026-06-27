@@ -65,18 +65,19 @@ check "numpy/ROOT"        python3.12 -c "import numpy, awkward, uproot, matplotl
 echo ""
 echo "--- Install my_sm model ---"
 MODEL_INSTALLED=0
-ORIG_DIR=$(pwd)  # Save before cd in Part 3
-# Try benchmark-image repo (where user runs from)
-for d in "$ORIG_DIR/models/my_sm" "$ORIG_DIR/../models/my_sm" \
+# Check env var, bundled, or bind-mounted paths
+for d in "${MY_SM_PATH:-}" \
+         "/opt/common/models/my_sm" \
          "/cefs/higgs/zhuyifan/DarkSHINE/darkshine-build/my_sm"; do
-    if [ -d "$d" ]; then
+    if [ -n "$d" ] && [ -d "$d" ]; then
         cp -r "$d" /opt/mg5/models/ 2>/dev/null && MODEL_INSTALLED=1 && break
     fi
 done
 if [ "$MODEL_INSTALLED" -eq 1 ]; then
     echo "  [OK] my_sm installed from $d"
 else
-    echo "  [WARN] my_sm not found — H>ss will fail. Bind benchmark-image or CEFS."
+    echo "  [WARN] my_sm not found. Set MY_SM_PATH or bind-mount. Following steps will fail."
+    echo "  Hint: MY_SM_PATH=\$PWD/models/my_sm apptainer exec --bind \$PWD ..."
     cp -r /opt/mg5/models/sm /opt/mg5/models/my_sm 2>/dev/null || true
 fi
 
