@@ -148,7 +148,14 @@ echo ""
 echo "--- Build higgs-strange-solver ---"
 if [ -f hss_delphes.root ]; then
     cd $WORK/source
-    if git clone -b "$BRANCH" "$SOLVER_REPO" solver 2>/dev/null; then
+    SOLVER_CLONED=0
+    for i in 1 2 3 4 5; do
+        if git clone -b "$BRANCH" "$SOLVER_REPO" solver 2>/dev/null; then
+            SOLVER_CLONED=1; break
+        fi
+        [ $i -lt 5 ] && sleep 5
+    done
+    if [ "$SOLVER_CLONED" -eq 1 ]; then
         echo "  [OK] Cloned solver ($BRANCH)"
 
         # Patch format strings for GCC 11 (jet_split, event_merge, sub_fusion)
@@ -280,7 +287,7 @@ if len(mjj) > 0:
             ((FAIL++))
         fi
     else
-        echo "  [FAIL] Git clone failed (network?)"
+        echo "  [FAIL] Solver clone failed after 5 attempts"
         ((FAIL++))
     fi
 else

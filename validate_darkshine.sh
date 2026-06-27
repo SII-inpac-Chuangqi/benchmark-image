@@ -72,18 +72,21 @@ for d in "${DS_SRC_PATH:-}" "/mnt/darkshine" "/mnt/bi/../darkshine-simulation"; 
         ln -s "$d" darkshine 2>/dev/null && DS_SRC="bind:$d" && break
     fi
 done
-# Fallback: git clone (works only on networks without GFW)
+# Fallback: git clone with retry
 if [ -z "$DS_SRC" ]; then
-    if git clone -b "$BRANCH" "$DS_REPO" darkshine 2>/dev/null; then
-        DS_SRC="git:$BRANCH"
-    fi
+    for i in 1 2 3 4 5; do
+        echo "  Clone attempt $i/5..."
+        if git clone -b "$BRANCH" "$DS_REPO" darkshine 2>/dev/null; then
+            DS_SRC="git:$BRANCH"; break
+        fi
+        [ $i -lt 5 ] && sleep 5
+    done
 fi
 if [ -n "$DS_SRC" ]; then
     echo "  [OK] Source: $DS_SRC"
 else
-    echo "  [FAIL] No source. Clone outside container first:"
-    echo "    git clone $DS_REPO /path/to/darkshine-simulation"
-    echo "    Then: DS_SRC_PATH=/path/to/darkshine-simulation apptainer exec --bind ..."
+    echo "  [FAIL] Clone failed after 5 attempts."
+    echo "    Set DS_SRC_PATH=/path/to/cloned/repo and bind-mount."
     ((FAIL++)); echo ""; echo "Results: $PASS passed, $FAIL failed"; exit $FAIL
 fi
 
