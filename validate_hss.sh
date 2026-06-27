@@ -184,7 +184,7 @@ FMT
             -DDELPHES_INCLUDE_DIR=/opt/common/include \
             -DDELPHES_EXTERNALS_INCLUDE_DIR=/opt/common/include/external \
             2>&1 | tail -2
-        make -j4 2>&1 | tail -5
+        make -j4 split_jet merge_event 2>&1 | tail -5
         make install 2>/dev/null || true
 
         SPLIT=$(find $WORK/build $WORK/install -name split_jet -executable 2>/dev/null | head -1)
