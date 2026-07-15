@@ -7,7 +7,7 @@ AlmaLinux 9 Apptainer container images for H→ss̄, DarkSHINE, CEPC, and LHC ph
 | Image | Size | Key Components |
 |-------|------|---------------|
 | `common/common.sif` | 672M | ROOT 6.40, Python 3.12, onnxruntime 1.16.3, HepMC3 3.3.1, LHAPDF 6.5.6, texlive-base |
-| `lhc/lhc.sif` | 763M | common + MG5 3.5.13, Pythia8, Delphes 3.5.0 (CMake, HAS_PYTHIA8) |
+| `lhc/lhc.sif` | 765M | common + MG5 3.5.13, Pythia8, Delphes 3.5.0 (CMake, HAS_PYTHIA8), pyhepmc |
 | `cepc-darkshine/cepc-darkshine.sif` | 801M | common + Geant4 10.6.3, MG5 3.6.7, CEPC Delphes (CMake), FeynGame |
 
 > `.sif` files are distributed via Git LFS. On lxlogin they're hard-linked from `darkshine-build/`.
@@ -19,8 +19,8 @@ AlmaLinux 9 Apptainer container images for H→ss̄, DarkSHINE, CEPC, and LHC ph
 apptainer exec --fakeroot --writable-tmpfs --bind $PWD:/mnt/bi \
     cepc-darkshine/cepc-darkshine.sif bash validate_hss.sh
 
-# Image checks only
-apptainer exec --fakeroot cepc-darkshine/cepc-darkshine.sif bash validate_cepc.sh
+# LHC image validation (static checks)
+apptainer exec --fakeroot lhc/lhc.sif bash validate_lhc.sh
 
 # DarkSHINE simulation (1k events, 8 GeV, 1.5T)
 apptainer exec --fakeroot --writable-tmpfs --bind $PWD:/mnt/bi \
@@ -43,9 +43,10 @@ Environment variables: `HSS_WORKDIR`, `HSS_NEVENTS`, `HSS_BRANCH`, `MY_SM_PATH`.
 |--------|--------|----------|
 | `validate_cepc.sh` | 21 | None (static availability) |
 | `validate_hss.sh` | 18 | MG5 → Delphes → Solver clone+build → jet_split → event_merge → mjj plot |
+| `validate_lhc.sh` | 21 | None (static availability) |
 | `validate_darkshine.sh` | 12 | Dependencies → Clone DS → Build → DSimu (1k events, 8 GeV, 1.5T) |
 
-Summary format: `Results: X passed, Y failed, Z skipped`.
+Summary format: `Results: X passed, Y failed`.
 
 ## Build
 
