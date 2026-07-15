@@ -196,15 +196,23 @@ FMT
         cd $WORK/build
         rm -rf * 2>/dev/null
         export DELPHES_DIR=/opt/common
-        cmake $WORK/source/solver \
+        CMAKE_OK=0
+        if cmake $WORK/source/solver \
             -DCMAKE_INSTALL_PREFIX=$WORK/install \
             -DCMAKE_CXX_STANDARD=20 \
             -DCMAKE_CXX_FLAGS="-fconcepts" \
             -DCMAKE_PREFIX_PATH=/usr \
             -DDELPHES_INCLUDE_DIR=/opt/common/include \
             -DDELPHES_EXTERNALS_INCLUDE_DIR=/opt/common/include/external \
-            > $WORK/build_cmake.log 2>&1
-        echo "  [INFO] cmake: $(tail -1 $WORK/build_cmake.log)"
+            > $WORK/build_cmake.log 2>&1; then
+            echo "  [INFO] cmake: $(tail -1 $WORK/build_cmake.log)"
+            CMAKE_OK=1
+        else
+            echo "  [FAIL] cmake failed (see below)"
+            tail -30 $WORK/build_cmake.log
+        fi
+
+        if [ $CMAKE_OK -eq 1 ]; then
         # Detect Docker vs Apptainer — Docker x86_64 emulation on ARM Mac needs -j1
         JOBS=${HSS_MAKE_JOBS:-4}
         if ! [ -f /run/.containerenv ] && [ -f /.dockerenv ]; then
@@ -280,9 +288,13 @@ PYPLOT
             ((FAIL++))
         fi
     else
-        echo "  [FAIL] Git clone failed (network?)"
+        echo "  [FAIL] Solver build (cmake)"
         ((FAIL++))
     fi
+else
+    echo "  [FAIL] Git clone failed (network?)"
+    ((FAIL++))
+fi
 else
     echo "  [SKIP] No Delphes"
 fi
