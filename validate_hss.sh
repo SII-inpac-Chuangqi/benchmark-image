@@ -252,16 +252,18 @@ YAML
                 echo "--- mjj distribution ---"
                 python3.12 << 'PYPLOT'
 import ROOT, os
+ROOT.gROOT.SetBatch(True)
 f = ROOT.TFile("merge_out/merge_ss_0000.root")
 t = f.Get("tree")
 if t and t.GetEntries() > 0:
     h = ROOT.TH1D("h_mjj", ";m_{jj} [GeV];Events / 2 GeV", 50, 0, 200)
     t.Draw("mjj>>h_mjj", "", "goff")
-    out = os.environ.get("PLOT_OUT", "/mnt/bi/mjj.pdf")
+    out_dir = os.environ.get("PLOT_OUT", "/mnt/bi")
     c = ROOT.TCanvas("c", "", 800, 600)
     h.Draw()
-    c.SaveAs(out)
-    print(f"  [PASS] mjj plot -> {out}  ({h.GetEntries()} entries, mean={h.GetMean():.1f}, RMS={h.GetRMS():.1f})")
+    c.SaveAs(f"{out_dir}/mjj.pdf")
+    c.SaveAs(f"{out_dir}/mjj.png")
+    print(f"  [PASS] mjj plot -> {out_dir}/mjj.pdf, {out_dir}/mjj.png  ({h.GetEntries()} entries, mean={h.GetMean():.1f}, RMS={h.GetRMS():.1f})")
 else:
     print("  [WARN] No mjj data in tree")
 f.Close()
