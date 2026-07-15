@@ -3,7 +3,7 @@ From: ../common/common.sif
 
 %post
     set -e
-    python3.12 -m pip install --no-cache-dir scipy==1.17.1
+    python3.12 -m pip install --no-cache-dir scipy==1.17.1 pyhepmc
 
 %environment
     export INSTALL_PREFIX=/opt/common
