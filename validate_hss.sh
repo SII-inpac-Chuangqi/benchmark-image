@@ -205,7 +205,13 @@ FMT
             -DDELPHES_EXTERNALS_INCLUDE_DIR=/opt/common/include/external \
             > $WORK/build_cmake.log 2>&1
         echo "  [INFO] cmake: $(tail -1 $WORK/build_cmake.log)"
-        if make -j4 > $WORK/build_make.log 2>&1; then
+        # Detect Docker vs Apptainer — Docker x86_64 emulation on ARM Mac needs -j1
+        JOBS=${HSS_MAKE_JOBS:-4}
+        if ! [ -f /run/.containerenv ] && [ -f /.dockerenv ]; then
+            JOBS=${HSS_MAKE_JOBS:-1}
+            echo "  [INFO] Docker detected, using make -j$JOBS"
+        fi
+        if make -j$JOBS > $WORK/build_make.log 2>&1; then
             echo "  [INFO] make: OK"
         else
             echo "  [FAIL] make failed (see below)"
